@@ -19,6 +19,9 @@ yarn-error.log*
 # env files
 .env*
 
+# kiro settings (contains sensitive MCP configurations)
+.kiro/
+
 # vercel
 .vercel
 
