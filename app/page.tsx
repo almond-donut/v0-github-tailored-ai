@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, useScroll, useTransform, useInView } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,13 +24,62 @@ import {
   Clock,
   Shield,
 } from "lucide-react"
+import { signInWithGitHub, getCurrentUser, type GitHubUser } from '@/lib/auth'
+import { useRouter } from 'next/navigation'
 
 export default function HomePage() {
   const [email, setEmail] = useState("")
   const [demoStep, setDemoStep] = useState(0)
+  const [isLoading, setIsLoading] = useState(false)
+  const [user, setUser] = useState<GitHubUser | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
   const { scrollYProgress } = useScroll()
   const y = useTransform(scrollYProgress, [0, 1], ["0%", "50%"])
   const opacity = useTransform(scrollYProgress, [0, 0.3], [1, 0])
+
+  useEffect(() => {
+    // Check if user is already authenticated
+    const checkAuth = async () => {
+      try {
+        console.log('HomePage: Checking authentication...')
+        const { user, error } = await getCurrentUser()
+        
+        if (error) {
+          console.error('HomePage: Auth check error:', error)
+          return
+        }
+        
+        if (user) {
+          console.log('HomePage: User found, redirecting to dashboard:', user.login)
+          setUser(user)
+          router.push('/dashboard')
+        } else {
+          console.log('HomePage: No user found')
+        }
+      } catch (err) {
+        console.error('HomePage: Auth check failed:', err)
+      }
+    }
+    checkAuth()
+  }, [router])
+
+  const handleGitHubLogin = async () => {
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      const { error } = await signInWithGitHub()
+      if (error) {
+        setError(error.message || 'Failed to authenticate with GitHub')
+      }
+    } catch (err) {
+      setError('An unexpected error occurred')
+      console.error('Login error:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const features = [
     {
@@ -363,9 +412,11 @@ export default function HomePage() {
               <Button
                 variant="outline"
                 className="border-gray-600 text-white hover:bg-gray-800 flex items-center gap-2 bg-transparent"
+                onClick={handleGitHubLogin}
+                disabled={isLoading}
               >
                 <Github className="h-4 w-4" />
-                Connect GitHub
+                {isLoading ? 'Connecting...' : 'Connect GitHub'}
               </Button>
             </motion.div>
             <motion.div whileHover={{ scale: 1.05 }}>
