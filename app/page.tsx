@@ -1,9 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Github,
   Star,
@@ -16,73 +18,166 @@ import {
   CheckCircle,
   ArrowRight,
   Sparkles,
+  AlertCircle,
+  X,
+  RefreshCw,
 } from "lucide-react"
-import { supabase } from "@/lib/supabase"
 
 export default function HomePage() {
   const [isConnecting, setIsConnecting] = useState(false)
-  const [user, setUser] = useState(null)
+  const [error, setError] = useState<string | null>(null)
+  const [debugInfo, setDebugInfo] = useState<any>(null)
+  const [isRedirecting, setIsRedirecting] = useState(false)
+  const searchParams = useSearchParams()
 
-  useEffect(() => {
-    // Check if user is already authenticated
-    const checkAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (session) {
-        setUser(session.user)
+  // Memoize the debug info to prevent re-creation on every render
+  const initializeDebugInfo = useCallback(() => {
+    if (typeof window !== "undefined") {
+      return {
+        currentUrl: window.location.href,
+        origin: window.location.origin,
+        clientId: process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID,
+        callbackUrl: `${window.location.origin}/api/github/callback`,
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString(),
       }
     }
-    checkAuth()
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) {
-        setUser(session.user)
-        window.location.href = "/dashboard"
-      }
-    })
-
-    return () => subscription.unsubscribe()
+    return null
   }, [])
 
-  const handleGitHubConnect = async () => {
-    setIsConnecting(true)
+  useEffect(() => {
+    // Only run once when component mounts
+    const oauthError = searchParams.get("oauth_error")
+    const oauthSuccess = searchParams.get("oauth_success")
 
-    // Debug: Log environment variables (without exposing secrets)
-    console.log("🔍 Debug Info:", {
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? "Set ✅" : "Missing ❌",
-      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "Set ✅" : "Missing ❌",
-      currentUrl: window.location.origin,
-    })
+    if (oauthError) {
+      setError(`OAuth Error: ${decodeURIComponent(oauthError)}`)
+      console.error("OAuth Error from URL:", oauthError)
+    }
+
+    if (oauthSuccess && !isRedirecting) {
+      console.log("OAuth Success detected, redirecting to dashboard...")
+      setIsRedirecting(true)
+      // Small delay to show success message
+      const timer = setTimeout(() => {
+        window.location.href = "/dashboard"
+      }, 1500)
+
+      return () => clearTimeout(timer)
+    }
+
+    // Initialize debug info only once
+    if (!debugInfo) {
+      setDebugInfo(initializeDebugInfo())
+    }
+  }, [searchParams, isRedirecting, debugInfo, initializeDebugInfo])
+
+  const handleGitHubConnect = useCallback(async () => {
+    if (isConnecting) return // Prevent multiple clicks
+
+    setIsConnecting(true)
+    setError(null)
 
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "github",
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`,
-          scopes: "repo user",
-        },
+      console.log("🚀 === STARTING GITHUB OAUTH FLOW ===")
+
+      // Get configuration
+      const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID || "Ov23liaOcBS8zuFJCGyG"
+      const redirectUri = `${window.location.origin}/api/github/callback`
+      const scope = "repo user"
+      const state = `oauth_${Date.now()}_${Math.random().toString(36).substring(7)}`
+
+      console.log("🔧 OAuth Configuration:", {
+        clientId: clientId.substring(0, 10) + "...",
+        redirectUri,
+        scope,
+        state,
+        origin: window.location.origin,
       })
 
-      console.log("🔗 OAuth Response:", { data, error })
-
-      if (error) {
-        console.error("❌ OAuth error:", error)
-        alert(`GitHub connection failed: ${error.message}`)
+      // Validate configuration
+      if (!clientId) {
+        throw new Error("GitHub Client ID is missing")
       }
+
+      // Build GitHub OAuth URL
+      const githubAuthUrl = new URL("https://github.com/login/oauth/authorize")
+      githubAuthUrl.searchParams.set("client_id", clientId)
+      githubAuthUrl.searchParams.set("redirect_uri", redirectUri)
+      githubAuthUrl.searchParams.set("scope", scope)
+      githubAuthUrl.searchParams.set("state", state)
+      githubAuthUrl.searchParams.set("allow_signup", "true")
+
+      const finalUrl = githubAuthUrl.toString()
+      console.log("🔗 Final OAuth URL:", finalUrl)
+
+      // Store state for verification
+      sessionStorage.setItem("oauth_state", state)
+      sessionStorage.setItem("oauth_start_time", Date.now().toString())
+
+      console.log("🚀 Redirecting to GitHub OAuth...")
+
+      // Add a small delay to ensure logging is complete
+      setTimeout(() => {
+        window.location.href = finalUrl
+      }, 100)
     } catch (error) {
-      console.error("❌ Connection error:", error)
-      alert(`Failed to connect to GitHub: ${error instanceof Error ? error.message : "Unknown error"}`)
-    } finally {
+      console.error("❌ OAuth initiation failed:", error)
+      setError(`Failed to start OAuth: ${error instanceof Error ? error.message : "Unknown error"}`)
       setIsConnecting(false)
     }
-  }
+  }, [isConnecting])
+
+  const dismissError = useCallback(() => {
+    setError(null)
+    // Clean URL
+    const url = new URL(window.location.href)
+    url.searchParams.delete("oauth_error")
+    url.searchParams.delete("oauth_success")
+    window.history.replaceState({}, document.title, url.pathname)
+  }, [])
+
+  const testCallback = useCallback(() => {
+    // Test callback URL directly
+    const testUrl = `${window.location.origin}/api/github/callback?test=true`
+    console.log("🧪 Testing callback URL:", testUrl)
+    window.open(testUrl, "_blank")
+  }, [])
+
+  const openDebugPage = useCallback(() => {
+    window.open("/debug", "_blank")
+  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+      {/* Error Alert */}
+      {error && (
+        <div className="fixed top-4 right-4 z-50 max-w-md">
+          <Alert className="bg-red-900/90 border-red-700 text-red-100">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="pr-8">{error}</AlertDescription>
+            <button onClick={dismissError} className="absolute top-2 right-2 text-red-300 hover:text-red-100">
+              <X className="h-4 w-4" />
+            </button>
+          </Alert>
+        </div>
+      )}
+
+      {/* Success Alert */}
+      {isRedirecting && (
+        <div className="fixed top-4 right-4 z-50 max-w-md">
+          <Alert className="bg-green-900/90 border-green-700 text-green-100">
+            <CheckCircle className="h-4 w-4" />
+            <AlertDescription>
+              <div className="flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                OAuth successful! Redirecting to dashboard...
+              </div>
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
       {/* Navigation */}
       <nav className="container mx-auto px-4 py-6">
         <div className="flex items-center justify-between">
@@ -97,22 +192,12 @@ export default function HomePage() {
             <a href="#features" className="text-gray-300 hover:text-white transition-colors">
               Features
             </a>
-            <a href="#pricing" className="text-gray-300 hover:text-white transition-colors">
-              Pricing
+            <a href="#demo" className="text-gray-300 hover:text-white transition-colors">
+              Demo
             </a>
-            {user ? (
-              <Button
-                asChild
-                variant="outline"
-                className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10 bg-transparent"
-              >
-                <a href="/dashboard">Dashboard</a>
-              </Button>
-            ) : (
-              <Button variant="ghost" className="text-gray-300 hover:text-white">
-                Sign In
-              </Button>
-            )}
+            <a href="/debug" className="text-gray-300 hover:text-white transition-colors">
+              Debug
+            </a>
           </div>
         </div>
       </nav>
@@ -142,11 +227,11 @@ export default function HomePage() {
             <Button
               size="lg"
               onClick={handleGitHubConnect}
-              disabled={isConnecting}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-4 text-lg font-semibold"
+              disabled={isConnecting || isRedirecting}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-4 text-lg font-semibold disabled:opacity-50"
             >
               <Github className="h-5 w-5 mr-2" />
-              {isConnecting ? "Connecting..." : "Connect GitHub"}
+              {isConnecting ? "Connecting..." : isRedirecting ? "Redirecting..." : "Connect GitHub"}
             </Button>
             <Button
               size="lg"
@@ -158,16 +243,37 @@ export default function HomePage() {
             </Button>
           </div>
 
-          {/* Debug Section - Remove in production */}
-          {process.env.NODE_ENV === "development" && (
-            <Card className="bg-red-900/20 border-red-700/50 mb-8">
-              <CardContent className="p-4">
-                <h3 className="text-red-400 font-semibold mb-2">🔧 Debug Info (Development Only)</h3>
-                <div className="text-sm space-y-1">
-                  <div>Supabase URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? "✅ Set" : "❌ Missing"}</div>
-                  <div>Supabase Key: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "✅ Set" : "❌ Missing"}</div>
-                  <div>Current URL: {typeof window !== "undefined" ? window.location.origin : "Server-side"}</div>
-                  <div>User State: {user ? `✅ Authenticated (${user.email})` : "❌ Not authenticated"}</div>
+          {/* Enhanced Debug Section - Only show in development */}
+          {process.env.NODE_ENV === "development" && debugInfo && (
+            <Card className="bg-blue-900/20 border-blue-700/50 mb-8">
+              <CardHeader>
+                <CardTitle className="text-blue-400 text-lg">🔧 Debug Information</CardTitle>
+              </CardHeader>
+              <CardContent className="text-left">
+                <div className="grid md:grid-cols-2 gap-4 text-sm space-y-2">
+                  <div>
+                    <strong>GitHub Client ID:</strong>{" "}
+                    <span className={debugInfo.clientId ? "text-green-400" : "text-red-400"}>
+                      {debugInfo.clientId ? "✅ Set" : "❌ Missing"}
+                    </span>
+                  </div>
+                  <div>
+                    <strong>Current URL:</strong> <code className="text-xs break-all">{debugInfo.currentUrl}</code>
+                  </div>
+                  <div>
+                    <strong>Callback URL:</strong> <code className="text-xs break-all">{debugInfo.callbackUrl}</code>
+                  </div>
+                  <div>
+                    <strong>Environment:</strong> {process.env.NODE_ENV}
+                  </div>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <Button size="sm" onClick={testCallback} variant="outline" className="text-xs bg-transparent">
+                    Test Callback URL
+                  </Button>
+                  <Button size="sm" onClick={openDebugPage} variant="outline" className="text-xs bg-transparent">
+                    Open Debug Page
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -192,7 +298,7 @@ export default function HomePage() {
       </section>
 
       {/* Interactive Demo */}
-      <section className="container mx-auto px-4 py-20">
+      <section id="demo" className="container mx-auto px-4 py-20">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-12">See it in action</h2>
           <Card className="bg-gray-900/50 border-gray-700/50 backdrop-blur-sm">
@@ -369,113 +475,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section id="pricing" className="container mx-auto px-4 py-20">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold mb-4">Choose your plan</h2>
-          <p className="text-xl text-gray-400">Start free, upgrade when you need more</p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          <Card className="bg-gray-800/30 border-gray-700/50">
-            <CardHeader>
-              <CardTitle className="text-2xl">Free</CardTitle>
-              <CardDescription>Perfect for getting started</CardDescription>
-              <div className="text-3xl font-bold">
-                $0<span className="text-lg font-normal text-gray-400">/month</span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3 mb-6">
-                <li className="flex items-center">
-                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />3 repository analyses per month
-                </li>
-                <li className="flex items-center">
-                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
-                  Basic README generation
-                </li>
-                <li className="flex items-center">
-                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
-                  Portfolio scoring
-                </li>
-              </ul>
-              <Button className="w-full bg-transparent" variant="outline">
-                Get Started
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-b from-purple-900/50 to-pink-900/50 border-purple-500/50 relative">
-            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-              <Badge className="bg-gradient-to-r from-purple-600 to-pink-600">Most Popular</Badge>
-            </div>
-            <CardHeader>
-              <CardTitle className="text-2xl">Pro</CardTitle>
-              <CardDescription>For serious developers</CardDescription>
-              <div className="text-3xl font-bold">
-                $19<span className="text-lg font-normal text-gray-400">/month</span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3 mb-6">
-                <li className="flex items-center">
-                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
-                  Unlimited repository analyses
-                </li>
-                <li className="flex items-center">
-                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
-                  Advanced AI suggestions
-                </li>
-                <li className="flex items-center">
-                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
-                  Custom README templates
-                </li>
-                <li className="flex items-center">
-                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
-                  Priority support
-                </li>
-              </ul>
-              <Button className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
-                Upgrade to Pro
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-800/30 border-gray-700/50">
-            <CardHeader>
-              <CardTitle className="text-2xl">Enterprise</CardTitle>
-              <CardDescription>For teams and organizations</CardDescription>
-              <div className="text-3xl font-bold">
-                $99<span className="text-lg font-normal text-gray-400">/month</span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3 mb-6">
-                <li className="flex items-center">
-                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
-                  Everything in Pro
-                </li>
-                <li className="flex items-center">
-                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
-                  Team collaboration
-                </li>
-                <li className="flex items-center">
-                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
-                  Custom integrations
-                </li>
-                <li className="flex items-center">
-                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
-                  Dedicated support
-                </li>
-              </ul>
-              <Button className="w-full bg-transparent" variant="outline">
-                Contact Sales
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
       {/* Target Audience */}
       <section className="container mx-auto px-4 py-20">
         <div className="text-center mb-16">
@@ -527,11 +526,11 @@ export default function HomePage() {
           <Button
             size="lg"
             onClick={handleGitHubConnect}
-            disabled={isConnecting}
-            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-12 py-4 text-xl font-semibold"
+            disabled={isConnecting || isRedirecting}
+            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-12 py-4 text-xl font-semibold disabled:opacity-50"
           >
             <Github className="h-6 w-6 mr-3" />
-            {isConnecting ? "Connecting..." : "Start Free Today"}
+            {isConnecting ? "Connecting..." : isRedirecting ? "Redirecting..." : "Start Free Today"}
           </Button>
         </div>
       </section>
@@ -553,13 +552,13 @@ export default function HomePage() {
               <h3 className="font-semibold mb-4">Product</h3>
               <ul className="space-y-2 text-gray-400">
                 <li>
-                  <a href="#" className="hover:text-white transition-colors">
+                  <a href="#features" className="hover:text-white transition-colors">
                     Features
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-white transition-colors">
-                    Pricing
+                  <a href="#demo" className="hover:text-white transition-colors">
+                    Demo
                   </a>
                 </li>
                 <li>

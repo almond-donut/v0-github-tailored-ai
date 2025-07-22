@@ -1,170 +1,162 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Github, Star, GitFork, Clock, CheckCircle, AlertCircle, Zap, FileText, Settings, LogOut } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { Github, Star, GitFork, Clock, CheckCircle, AlertCircle, Zap, FileText, LogOut } from "lucide-react"
 
-// Mock data for demonstration
-const mockRepositories = [
-  {
-    id: "1",
-    name: "my-portfolio",
-    full_name: "username/my-portfolio",
-    description: "Personal portfolio website built with Next.js",
-    language: "TypeScript",
-    stars_count: 12,
-    forks_count: 3,
-    score: 85,
-    status: "completed",
-    last_analyzed: "2024-01-20T10:30:00Z",
-    html_url: "https://github.com/username/my-portfolio",
-  },
-  {
-    id: "2",
-    name: "todo-app",
-    full_name: "username/todo-app",
-    description: "Simple todo application with React",
-    language: "JavaScript",
-    stars_count: 5,
-    forks_count: 1,
-    score: 62,
-    status: "analyzing",
-    last_analyzed: null,
-    html_url: "https://github.com/username/todo-app",
-  },
-  {
-    id: "3",
-    name: "api-server",
-    full_name: "username/api-server",
-    description: "RESTful API server with Node.js and Express",
-    language: "JavaScript",
-    stars_count: 8,
-    forks_count: 2,
-    score: null,
-    status: "pending",
-    last_analyzed: null,
-    html_url: "https://github.com/username/api-server",
-  },
-]
+interface GitHubUser {
+  id: number
+  login: string
+  name: string
+  email: string
+  avatar_url: string
+  bio: string
+}
+
+interface GitHubRepo {
+  id: number
+  name: string
+  full_name: string
+  description: string
+  language: string
+  stargazers_count: number
+  forks_count: number
+  html_url: string
+  updated_at: string
+  private: boolean
+}
+
+interface UserSession {
+  user: GitHubUser
+  repositories: GitHubRepo[]
+  access_token: string
+  authenticated_at: string
+}
 
 export default function DashboardPage() {
-  const [repositories, setRepositories] = useState(mockRepositories)
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [user, setUser] = useState(null)
+  const [session, setSession] = useState<UserSession | null>(null)
+  const [repositories, setRepositories] = useState<GitHubRepo[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
-    // Check authentication status
-    const checkAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (session) {
-        setUser(session.user)
-      } else {
-        // For demo purposes, we'll show mock data even without auth
-        // In production, you might want to redirect to login
-        console.log("No authenticated user, showing demo data")
-      }
+    const success = searchParams.get("success")
+    const errorParam = searchParams.get("error")
+
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam))
+      setIsLoading(false)
+      return
     }
-    checkAuth()
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) {
-        setUser(session.user)
-      } else if (event === "SIGNED_OUT") {
-        setUser(null)
-        router.push("/")
-      }
-    })
+    if (success === "authenticated") {
+      // Fetch session data from cookie
+      fetchSessionData()
+    } else {
+      // Check if user already has a session
+      fetchSessionData()
+    }
+  }, [searchParams])
 
-    return () => subscription.unsubscribe()
-  }, [router])
-
-  const handleConnectGitHub = async () => {
-    setIsConnecting(true)
+  const fetchSessionData = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "github",
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`,
-          scopes: "repo user",
-        },
-      })
-
-      if (error) {
-        console.error("OAuth error:", error)
-        alert("Failed to connect to GitHub. Please try again.")
+      const response = await fetch("/api/session")
+      if (response.ok) {
+        const sessionData = await response.json()
+        setSession(sessionData)
+        setRepositories(sessionData.repositories || [])
+      } else {
+        setError("No active session found")
       }
-    } catch (error) {
-      console.error("Connection error:", error)
-      alert("Failed to connect to GitHub. Please try again.")
+    } catch (err) {
+      console.error("Failed to fetch session:", err)
+      setError("Failed to load session data")
     } finally {
-      setIsConnecting(false)
+      setIsLoading(false)
     }
   }
 
   const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      console.error("Sign out error:", error)
+    try {
+      await fetch("/api/session", { method: "DELETE" })
+      setSession(null)
+      setRepositories([])
+      router.push("/")
+    } catch (err) {
+      console.error("Sign out error:", err)
     }
   }
 
-  const handleAnalyzeRepo = async (repoId: string) => {
-    setRepositories((prev) =>
-      prev.map((repo) => (repo.id === repoId ? { ...repo, status: "analyzing" as const } : repo)),
+  const handleAnalyzeRepo = async (repo: GitHubRepo) => {
+    // TODO: Implement AI analysis
+    console.log("Analyzing repository:", repo.name)
+    alert(`Analysis for ${repo.name} will be implemented soon!`)
+  }
+
+  const getLanguageColor = (language: string) => {
+    const colors: { [key: string]: string } = {
+      JavaScript: "bg-yellow-500",
+      TypeScript: "bg-blue-500",
+      Python: "bg-green-500",
+      Java: "bg-red-500",
+      "C++": "bg-purple-500",
+      Go: "bg-cyan-500",
+      Rust: "bg-orange-500",
+      PHP: "bg-indigo-500",
+    }
+    return colors[language] || "bg-gray-500"
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-400 mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading your GitHub data...</p>
+        </div>
+      </div>
     )
+  }
 
-    // Simulate analysis
-    await new Promise((resolve) => setTimeout(resolve, 3000))
-
-    setRepositories((prev) =>
-      prev.map((repo) =>
-        repo.id === repoId
-          ? {
-              ...repo,
-              status: "completed" as const,
-              score: Math.floor(Math.random() * 40) + 60,
-              last_analyzed: new Date().toISOString(),
-            }
-          : repo,
-      ),
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white flex items-center justify-center">
+        <Card className="bg-red-900/20 border-red-700/50 max-w-md">
+          <CardContent className="p-6 text-center">
+            <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">Authentication Error</h2>
+            <p className="text-gray-300 mb-4">{error}</p>
+            <Button onClick={() => router.push("/")} className="bg-purple-600 hover:bg-purple-700">
+              <Github className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "bg-green-500"
-      case "analyzing":
-        return "bg-yellow-500"
-      case "error":
-        return "bg-red-500"
-      default:
-        return "bg-gray-500"
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircle className="h-4 w-4" />
-      case "analyzing":
-        return <Clock className="h-4 w-4 animate-spin" />
-      case "error":
-        return <AlertCircle className="h-4 w-4" />
-      default:
-        return <Clock className="h-4 w-4" />
-    }
+  if (!session) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white flex items-center justify-center">
+        <Card className="bg-gray-800/30 border-gray-700/50 max-w-md">
+          <CardContent className="p-6 text-center">
+            <Github className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">Not Authenticated</h2>
+            <p className="text-gray-300 mb-4">Please connect your GitHub account to continue</p>
+            <Button onClick={() => router.push("/")} className="bg-purple-600 hover:bg-purple-700">
+              <Github className="h-4 w-4 mr-2" />
+              Connect GitHub
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -177,48 +169,38 @@ export default function DashboardPage() {
             <p className="text-gray-400">Manage and optimize your GitHub repositories</p>
           </div>
           <div className="flex items-center gap-4">
-            {!user && (
-              <Button
-                onClick={handleConnectGitHub}
-                disabled={isConnecting}
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-              >
-                <Github className="h-4 w-4 mr-2" />
-                {isConnecting ? "Connecting..." : "Connect GitHub"}
-              </Button>
-            )}
-            {user && (
-              <Button
-                onClick={handleSignOut}
-                variant="outline"
-                className="border-gray-600 text-gray-300 hover:bg-gray-800 bg-transparent"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </Button>
-            )}
+            <Button
+              onClick={handleSignOut}
+              variant="outline"
+              className="border-gray-600 text-gray-300 hover:bg-gray-800 bg-transparent"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
           </div>
         </div>
 
         {/* User Info */}
-        {user && (
-          <Card className="bg-gray-800/30 border-gray-700/50 mb-8">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                  {user.user_metadata?.name?.charAt(0) || user.email?.charAt(0) || "U"}
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold">{user.user_metadata?.name || "GitHub User"}</h3>
-                  <p className="text-gray-400">{user.email}</p>
-                  <Badge variant="secondary" className="mt-1">
-                    Connected to GitHub
-                  </Badge>
-                </div>
+        <Card className="bg-gray-800/30 border-gray-700/50 mb-8">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <img
+                src={session.user.avatar_url || "/placeholder.svg"}
+                alt={session.user.name || session.user.login}
+                className="w-16 h-16 rounded-full"
+              />
+              <div>
+                <h3 className="text-xl font-semibold">{session.user.name || session.user.login}</h3>
+                <p className="text-gray-400">@{session.user.login}</p>
+                {session.user.bio && <p className="text-gray-300 mt-1">{session.user.bio}</p>}
+                <Badge variant="secondary" className="mt-2">
+                  <Github className="h-3 w-3 mr-1" />
+                  Connected to GitHub
+                </Badge>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Stats Cards */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
@@ -238,8 +220,8 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-sm">Analyzed</p>
-                  <p className="text-2xl font-bold">{repositories.filter((r) => r.status === "completed").length}</p>
+                  <p className="text-gray-400 text-sm">Public Repos</p>
+                  <p className="text-2xl font-bold">{repositories.filter((r) => !r.private).length}</p>
                 </div>
                 <CheckCircle className="h-8 w-8 text-green-400" />
               </div>
@@ -250,12 +232,9 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-sm">Average Score</p>
+                  <p className="text-gray-400 text-sm">Total Stars</p>
                   <p className="text-2xl font-bold">
-                    {Math.round(
-                      repositories.filter((r) => r.score).reduce((acc, r) => acc + (r.score || 0), 0) /
-                        repositories.filter((r) => r.score).length,
-                    ) || 0}
+                    {repositories.reduce((acc, repo) => acc + repo.stargazers_count, 0)}
                   </p>
                 </div>
                 <Star className="h-8 w-8 text-yellow-400" />
@@ -267,10 +246,12 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-sm">In Progress</p>
-                  <p className="text-2xl font-bold">{repositories.filter((r) => r.status === "analyzing").length}</p>
+                  <p className="text-gray-400 text-sm">Languages</p>
+                  <p className="text-2xl font-bold">
+                    {new Set(repositories.map((r) => r.language).filter(Boolean)).size}
+                  </p>
                 </div>
-                <Clock className="h-8 w-8 text-blue-400" />
+                <FileText className="h-8 w-8 text-blue-400" />
               </div>
             </CardContent>
           </Card>
@@ -281,96 +262,87 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Github className="h-5 w-5" />
-              Your Repositories
+              Your Repositories ({repositories.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {repositories.map((repo) => (
-                <div
-                  key={repo.id}
-                  className="border border-gray-700/50 rounded-lg p-4 hover:border-purple-500/50 transition-colors"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full ${getStatusColor(repo.status)}`} />
-                      <div>
-                        <h3 className="font-semibold text-lg">{repo.name}</h3>
-                        <p className="text-gray-400 text-sm">{repo.description}</p>
+            {repositories.length === 0 ? (
+              <div className="text-center py-8">
+                <Github className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-400">No repositories found</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {repositories.map((repo) => (
+                  <div
+                    key={repo.id}
+                    className="border border-gray-700/50 rounded-lg p-4 hover:border-purple-500/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          {repo.private && <div className="w-2 h-2 rounded-full bg-yellow-500" />}
+                          <div>
+                            <h3 className="font-semibold text-lg">{repo.name}</h3>
+                            <p className="text-gray-400 text-sm">{repo.description || "No description"}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {repo.language && (
+                          <Badge variant="secondary" className={`${getLanguageColor(repo.language)} text-white`}>
+                            {repo.language}
+                          </Badge>
+                        )}
+                        {repo.private && (
+                          <Badge variant="outline" className="border-yellow-600 text-yellow-400">
+                            Private
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="bg-gray-700/50">
-                        {repo.language}
-                      </Badge>
-                      <Badge variant="outline" className="border-gray-600">
-                        {getStatusIcon(repo.status)}
-                        <span className="ml-1 capitalize">{repo.status}</span>
-                      </Badge>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-4 text-sm text-gray-400">
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4" />
-                        {repo.stars_count}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <GitFork className="h-4 w-4" />
-                        {repo.forks_count}
-                      </div>
-                      {repo.last_analyzed && (
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-4 text-sm text-gray-400">
+                        <div className="flex items-center gap-1">
+                          <Star className="h-4 w-4" />
+                          {repo.stargazers_count}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <GitFork className="h-4 w-4" />
+                          {repo.forks_count}
+                        </div>
                         <div className="flex items-center gap-1">
                           <Clock className="h-4 w-4" />
-                          Last analyzed: {new Date(repo.last_analyzed).toLocaleDateString()}
-                        </div>
-                      )}
-                    </div>
-                    {repo.score && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-400">Score:</span>
-                        <div className="flex items-center gap-2">
-                          <Progress value={repo.score} className="w-20" />
-                          <span className="text-sm font-semibold">{repo.score}/100</span>
+                          Updated {new Date(repo.updated_at).toLocaleDateString()}
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
 
-                  <div className="flex items-center gap-2">
-                    {repo.status === "pending" && (
+                    <div className="flex items-center gap-2">
                       <Button
                         size="sm"
-                        onClick={() => handleAnalyzeRepo(repo.id)}
+                        onClick={() => handleAnalyzeRepo(repo)}
                         className="bg-purple-600 hover:bg-purple-700"
                       >
                         <Zap className="h-4 w-4 mr-1" />
-                        Analyze
+                        Analyze with AI
                       </Button>
-                    )}
-                    {repo.status === "completed" && (
-                      <>
-                        <Button size="sm" variant="outline" className="border-gray-600 bg-transparent">
-                          <FileText className="h-4 w-4 mr-1" />
-                          View Report
-                        </Button>
-                        <Button size="sm" variant="outline" className="border-gray-600 bg-transparent">
-                          <Settings className="h-4 w-4 mr-1" />
-                          Optimize
-                        </Button>
-                      </>
-                    )}
-                    <Button size="sm" variant="ghost" asChild>
-                      <a href={repo.html_url} target="_blank" rel="noopener noreferrer">
-                        <Github className="h-4 w-4 mr-1" />
-                        View on GitHub
-                      </a>
-                    </Button>
+                      <Button size="sm" variant="outline" className="border-gray-600 bg-transparent">
+                        <FileText className="h-4 w-4 mr-1" />
+                        Generate README
+                      </Button>
+                      <Button size="sm" variant="ghost" asChild>
+                        <a href={repo.html_url} target="_blank" rel="noopener noreferrer">
+                          <Github className="h-4 w-4 mr-1" />
+                          View on GitHub
+                        </a>
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

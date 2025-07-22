@@ -4,73 +4,154 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { OAuthDebug } from "@/components/oauth-debug"
-import { supabase } from "@/lib/supabase"
-import { Github, ArrowLeft, Database, Key, Settings } from "lucide-react"
+import { Github, ArrowLeft, Settings, AlertTriangle, CheckCircle, XCircle } from "lucide-react"
 import Link from "next/link"
 
 export default function DebugPage() {
-  const [authState, setAuthState] = useState<any>(null)
-  const [supabaseHealth, setSupabaseHealth] = useState<any>(null)
+  const [debugInfo, setDebugInfo] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    checkAuthState()
-    checkSupabaseHealth()
+    runDiagnostics()
   }, [])
 
-  const checkAuthState = async () => {
-    try {
-      const { data, error } = await supabase.auth.getSession()
-      setAuthState({
-        session: data.session,
-        user: data.session?.user,
-        error: error?.message,
-      })
-    } catch (err) {
-      setAuthState({
-        error: err instanceof Error ? err.message : "Unknown error",
-      })
+  const runDiagnostics = async () => {
+    setIsLoading(true)
+    const info: any = {
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+      tests: {},
     }
-  }
 
-  const checkSupabaseHealth = async () => {
     try {
-      const { data, error } = await supabase.from("user_profiles").select("count").limit(1)
-      setSupabaseHealth({
-        connected: !error,
-        tablesExist: !error,
-        error: error?.message,
-      })
-    } catch (err) {
-      setSupabaseHealth({
-        connected: false,
-        error: err instanceof Error ? err.message : "Unknown error",
-      })
-    }
-  }
-
-  const testGitHubOAuth = async () => {
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "github",
-        options: {
-          redirectTo: `${window.location.origin}/debug`,
-          scopes: "repo user",
+      // Test 1: Environment Variables
+      info.tests.envVars = {
+        name: "Environment Variables",
+        status: "success",
+        details: {
+          githubClientId: !!process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID,
+          clientIdValue: process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID?.substring(0, 10) + "...",
+          nodeEnv: process.env.NODE_ENV,
         },
-      })
-
-      if (error) {
-        alert(`OAuth Error: ${error.message}`)
       }
-    } catch (err) {
-      alert(`OAuth Test Failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+
+      // Test 2: URLs
+      info.tests.urls = {
+        name: "URL Configuration",
+        status: "success",
+        details: {
+          currentOrigin: window.location.origin,
+          callbackUrl: `${window.location.origin}/api/github/callback`,
+          githubAuthUrl: `https://github.com/login/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID}`,
+        },
+      }
+
+      // Test 3: Session API
+      try {
+        const sessionResponse = await fetch("/api/session")
+        info.tests.sessionApi = {
+          name: "Session API",
+          status: sessionResponse.ok ? "success" : "warning",
+          details: {
+            status: sessionResponse.status,
+            statusText: sessionResponse.statusText,
+            hasSession: sessionResponse.status === 200,
+          },
+        }
+      } catch (err) {
+        info.tests.sessionApi = {
+          name: "Session API",
+          status: "error",
+          details: { error: err instanceof Error ? err.message : "Unknown error" },
+        }
+      }
+
+      // Test 4: GitHub API Connectivity
+      try {
+        const githubResponse = await fetch("https://api.github.com/", { method: "HEAD" })
+        info.tests.githubApi = {
+          name: "GitHub API Connectivity",
+          status: githubResponse.ok ? "success" : "error",
+          details: {
+            status: githubResponse.status,
+            accessible: githubResponse.ok,
+          },
+        }
+      } catch (err) {
+        info.tests.githubApi = {
+          name: "GitHub API Connectivity",
+          status: "error",
+          details: { error: err instanceof Error ? err.message : "Network error" },
+        }
+      }
+
+      // Test 5: Browser Environment
+      info.tests.browser = {
+        name: "Browser Environment",
+        status: "success",
+        details: {
+          localStorage: typeof localStorage !== "undefined",
+          sessionStorage: typeof sessionStorage !== "undefined",
+          cookies: typeof document !== "undefined",
+          https: window.location.protocol === "https:" || window.location.hostname === "localhost",
+          userAgent: navigator.userAgent.substring(0, 50) + "...",
+        },
+      }
+
+      setDebugInfo(info)
+    } catch (error) {
+      console.error("Diagnostics error:", error)
+      info.tests.diagnosticsError = {
+        name: "Diagnostics Error",
+        status: "error",
+        details: { error: error instanceof Error ? error.message : "Unknown error" },
+      }
+      setDebugInfo(info)
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const clearAuth = async () => {
-    await supabase.auth.signOut()
-    setAuthState(null)
-    window.location.reload()
+  const testGitHubOAuth = () => {
+    const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID || "Ov23liaOcBS8zuFJCGyG"
+    const redirectUri = `${window.location.origin}/api/github/callback`
+    const scope = "repo user"
+    const state = `debug_test_${Date.now()}`
+
+    const githubAuthUrl = new URL("https://github.com/login/oauth/authorize")
+    githubAuthUrl.searchParams.set("client_id", clientId)
+    githubAuthUrl.searchParams.set("redirect_uri", redirectUri)
+    githubAuthUrl.searchParams.set("scope", scope)
+    githubAuthUrl.searchParams.set("state", state)
+
+    console.log("🧪 Testing GitHub OAuth with URL:", githubAuthUrl.toString())
+    window.open(githubAuthUrl.toString(), "_blank")
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "success":
+        return <CheckCircle className="h-4 w-4 text-green-400" />
+      case "warning":
+        return <AlertTriangle className="h-4 w-4 text-yellow-400" />
+      case "error":
+        return <XCircle className="h-4 w-4 text-red-400" />
+      default:
+        return <AlertTriangle className="h-4 w-4 text-gray-400" />
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "success":
+        return "border-green-500/50 bg-green-900/20"
+      case "warning":
+        return "border-yellow-500/50 bg-yellow-900/20"
+      case "error":
+        return "border-red-500/50 bg-red-900/20"
+      default:
+        return "border-gray-500/50 bg-gray-900/20"
+    }
   }
 
   return (
@@ -80,7 +161,7 @@ export default function DebugPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold mb-2">🔧 Debug Dashboard</h1>
-            <p className="text-gray-400">Troubleshoot GitHub OAuth and Supabase issues</p>
+            <p className="text-gray-400">Troubleshoot GitHub OAuth issues</p>
           </div>
           <Link href="/">
             <Button variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-800 bg-transparent">
@@ -90,169 +171,93 @@ export default function DebugPage() {
           </Link>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Environment Check */}
+        {/* Quick Actions */}
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
           <Card className="bg-gray-800/30 border-gray-700/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5 text-blue-400" />
-                Environment Variables
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span>NEXT_PUBLIC_SUPABASE_URL</span>
-                <Badge variant={process.env.NEXT_PUBLIC_SUPABASE_URL ? "default" : "destructive"}>
-                  {process.env.NEXT_PUBLIC_SUPABASE_URL ? "✅ Set" : "❌ Missing"}
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>NEXT_PUBLIC_SUPABASE_ANON_KEY</span>
-                <Badge variant={process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "default" : "destructive"}>
-                  {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "✅ Set" : "❌ Missing"}
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>NEXT_PUBLIC_GEMINI_API_KEY</span>
-                <Badge variant={process.env.NEXT_PUBLIC_GEMINI_API_KEY ? "default" : "destructive"}>
-                  {process.env.NEXT_PUBLIC_GEMINI_API_KEY ? "✅ Set" : "❌ Missing"}
-                </Badge>
-              </div>
-              {process.env.NEXT_PUBLIC_SUPABASE_URL && (
-                <div className="text-sm text-gray-400 mt-2">
-                  <strong>Supabase URL:</strong> {process.env.NEXT_PUBLIC_SUPABASE_URL.substring(0, 30)}...
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Auth State */}
-          <Card className="bg-gray-800/30 border-gray-700/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Key className="h-5 w-5 text-green-400" />
-                Authentication State
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {authState ? (
-                <>
-                  <div className="flex justify-between items-center">
-                    <span>Session</span>
-                    <Badge variant={authState.session ? "default" : "destructive"}>
-                      {authState.session ? "✅ Active" : "❌ None"}
-                    </Badge>
-                  </div>
-                  {authState.user && (
-                    <>
-                      <div className="text-sm">
-                        <strong>User:</strong> {authState.user.email}
-                      </div>
-                      <div className="text-sm">
-                        <strong>Provider:</strong> {authState.user.app_metadata?.provider || "Unknown"}
-                      </div>
-                      <div className="text-sm">
-                        <strong>GitHub:</strong> {authState.user.user_metadata?.user_name || "Not connected"}
-                      </div>
-                    </>
-                  )}
-                  {authState.error && (
-                    <div className="text-sm text-red-400">
-                      <strong>Error:</strong> {authState.error}
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={checkAuthState}>
-                      Refresh
-                    </Button>
-                    {authState.session && (
-                      <Button size="sm" variant="destructive" onClick={clearAuth}>
-                        Sign Out
-                      </Button>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div>Loading auth state...</div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Supabase Health */}
-          <Card className="bg-gray-800/30 border-gray-700/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5 text-purple-400" />
-                Supabase Health
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {supabaseHealth ? (
-                <>
-                  <div className="flex justify-between items-center">
-                    <span>Connection</span>
-                    <Badge variant={supabaseHealth.connected ? "default" : "destructive"}>
-                      {supabaseHealth.connected ? "✅ Connected" : "❌ Failed"}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Tables</span>
-                    <Badge variant={supabaseHealth.tablesExist ? "default" : "destructive"}>
-                      {supabaseHealth.tablesExist ? "✅ Exist" : "❌ Missing"}
-                    </Badge>
-                  </div>
-                  {supabaseHealth.error && (
-                    <div className="text-sm text-red-400">
-                      <strong>Error:</strong> {supabaseHealth.error}
-                    </div>
-                  )}
-                  <Button size="sm" onClick={checkSupabaseHealth}>
-                    Refresh
-                  </Button>
-                </>
-              ) : (
-                <div>Checking Supabase health...</div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions */}
-          <Card className="bg-gray-800/30 border-gray-700/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Github className="h-5 w-5 text-yellow-400" />
-                Quick Actions
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button onClick={testGitHubOAuth} className="w-full">
+            <CardContent className="p-6">
+              <Button onClick={testGitHubOAuth} className="w-full bg-purple-600 hover:bg-purple-700">
                 <Github className="h-4 w-4 mr-2" />
-                Test GitHub OAuth
+                Test GitHub OAuth (New Tab)
               </Button>
-              <Button
-                variant="outline"
-                className="w-full border-gray-600 bg-transparent"
-                onClick={() => window.open("https://supabase.com/dashboard", "_blank")}
-              >
-                <Database className="h-4 w-4 mr-2" />
-                Open Supabase Dashboard
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full border-gray-600 bg-transparent"
-                onClick={() => window.open("https://github.com/settings/applications", "_blank")}
-              >
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gray-800/30 border-gray-700/50">
+            <CardContent className="p-6">
+              <Button onClick={runDiagnostics} disabled={isLoading} className="w-full bg-blue-600 hover:bg-blue-700">
                 <Settings className="h-4 w-4 mr-2" />
+                {isLoading ? "Running..." : "Refresh Diagnostics"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gray-800/30 border-gray-700/50">
+            <CardContent className="p-6">
+              <Button
+                onClick={() => window.open("https://github.com/settings/applications", "_blank")}
+                variant="outline"
+                className="w-full border-gray-600 bg-transparent"
+              >
+                <Github className="h-4 w-4 mr-2" />
                 GitHub OAuth Apps
               </Button>
             </CardContent>
           </Card>
         </div>
 
-        {/* Comprehensive Diagnostics */}
-        <div className="mt-8">
-          <OAuthDebug />
-        </div>
+        {/* Diagnostics Results */}
+        {debugInfo && (
+          <div className="space-y-6">
+            <Card className="bg-gray-800/30 border-gray-700/50">
+              <CardHeader>
+                <CardTitle>📊 System Information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <strong>Timestamp:</strong> {new Date(debugInfo.timestamp).toLocaleString()}
+                  </div>
+                  <div>
+                    <strong>Environment:</strong> {debugInfo.environment}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Test Results */}
+            <div className="grid gap-4">
+              {Object.entries(debugInfo.tests).map(([key, test]: [string, any]) => (
+                <Card key={key} className={`${getStatusColor(test.status)} border`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-semibold flex items-center gap-2">
+                        {getStatusIcon(test.status)}
+                        {test.name}
+                      </h4>
+                      <Badge variant={test.status === "success" ? "default" : "destructive"}>
+                        {test.status.toUpperCase()}
+                      </Badge>
+                    </div>
+                    <div className="text-sm space-y-2">
+                      {Object.entries(test.details).map(([detailKey, value]: [string, any]) => (
+                        <div key={detailKey} className="flex justify-between items-center">
+                          <span className="text-gray-400">{detailKey}:</span>
+                          <span
+                            className={`font-mono text-xs ${
+                              typeof value === "boolean" ? (value ? "text-green-400" : "text-red-400") : "text-gray-300"
+                            }`}
+                          >
+                            {typeof value === "boolean" ? (value ? "✅ Yes" : "❌ No") : String(value)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Common Issues */}
         <Card className="bg-gray-800/30 border-gray-700/50 mt-8">
@@ -261,27 +266,24 @@ export default function DebugPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="border-l-4 border-red-500 pl-4">
-              <h4 className="font-semibold text-red-400">OAuth Provider Not Enabled</h4>
+              <h4 className="font-semibold text-red-400">Blank White Page After OAuth</h4>
               <p className="text-sm text-gray-300">
-                Go to Supabase Dashboard → Authentication → Providers → Enable GitHub OAuth
+                Usually caused by callback URL mismatch. Check that your GitHub OAuth App callback URL is exactly:{" "}
+                <code className="bg-gray-700 px-1 rounded">
+                  {typeof window !== "undefined" ? `${window.location.origin}/api/github/callback` : ""}
+                </code>
               </p>
             </div>
             <div className="border-l-4 border-yellow-500 pl-4">
-              <h4 className="font-semibold text-yellow-400">Redirect URI Mismatch</h4>
+              <h4 className="font-semibold text-yellow-400">OAuth App Not Found</h4>
               <p className="text-sm text-gray-300">
-                GitHub OAuth App redirect URI should be: <code>https://your-project.supabase.co/auth/v1/callback</code>
+                Make sure your GitHub OAuth App exists and the Client ID matches your environment variable
               </p>
             </div>
             <div className="border-l-4 border-blue-500 pl-4">
-              <h4 className="font-semibold text-blue-400">Environment Variables</h4>
+              <h4 className="font-semibold text-blue-400">CORS or Network Issues</h4>
               <p className="text-sm text-gray-300">
-                Make sure your <code>.env.local</code> file has all required variables and restart your dev server
-              </p>
-            </div>
-            <div className="border-l-4 border-green-500 pl-4">
-              <h4 className="font-semibold text-green-400">Database Tables Missing</h4>
-              <p className="text-sm text-gray-300">
-                Run the SQL script in <code>scripts/create-tables.sql</code> in your Supabase SQL editor
+                Check browser console for errors and ensure you're not blocking GitHub API requests
               </p>
             </div>
           </CardContent>
