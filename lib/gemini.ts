@@ -1,25 +1,25 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// Gemini AI integration using Gemini 2.0 Flash
+import { GoogleGenerativeAI } from "@google/generative-ai"
 
 interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
+  role: "user" | "assistant"
+  content: string
 }
 
-// Gemini AI integration using Gemini 2.0 Flash
 export class GeminiAI {
-  private apiKey: string;
-  private genAI: GoogleGenerativeAI;
-  private model: any;
+  private apiKey: string
+  private genAI: GoogleGenerativeAI
+  private model: any
 
   constructor() {
-    this.apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
+    this.apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "AIzaSyAkgwl43yl9TlceXNeifbGztVLEYe83nPw"
     if (!this.apiKey) {
-      throw new Error("NEXT_PUBLIC_GEMINI_API_KEY environment variable is required");
+      throw new Error("NEXT_PUBLIC_GEMINI_API_KEY environment variable is required")
     }
-    
-    this.genAI = new GoogleGenerativeAI(this.apiKey);
+
+    this.genAI = new GoogleGenerativeAI(this.apiKey)
     // Using Gemini 2.0 Flash model for better performance
-    this.model = this.genAI.getGenerativeModel({ 
+    this.model = this.genAI.getGenerativeModel({
       model: "gemini-2.0-flash-exp",
       generationConfig: {
         temperature: 0.7,
@@ -27,68 +27,74 @@ export class GeminiAI {
         topK: 40,
         maxOutputTokens: 2048,
       },
-    });
+    })
   }
 
   async generateResponse(
-    message: string, 
-    conversationHistory: ChatMessage[] = [], 
+    message: string,
+    conversationHistory: ChatMessage[] = [],
     systemPrompt?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<string> {
     try {
       // Build conversation context
-      let prompt = '';
-      
+      let prompt = ""
+
       if (systemPrompt) {
-        prompt += `${systemPrompt}\n\n`;
+        prompt += `${systemPrompt}\n\n`
       }
 
       // Add conversation history
       if (conversationHistory.length > 0) {
-        prompt += "Previous conversation:\n";
+        prompt += "Previous conversation:\n"
         conversationHistory.forEach((msg) => {
-          prompt += `${msg.role === 'user' ? 'Human' : 'Assistant'}: ${msg.content}\n`;
-        });
-        prompt += "\n";
+          prompt += `${msg.role === "user" ? "Human" : "Assistant"}: ${msg.content}\n`
+        })
+        prompt += "\n"
       }
 
-      prompt += `Human: ${message}\nAssistant:`;
+      prompt += `Human: ${message}\nAssistant:`
 
-      const result = await this.model.generateContent(prompt, { signal });
-      const response = await result.response;
-      const text = response.text();
+      const result = await this.model.generateContent(prompt, { signal })
+      const response = await result.response
+      const text = response.text()
 
       if (!text) {
-        throw new Error("Empty response from Gemini API");
+        throw new Error("Empty response from Gemini API")
       }
 
-      return text;
+      return text
     } catch (error) {
-      console.error("Gemini AI Error:", error);
-      throw new Error(`Failed to generate response: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error("Gemini AI Error:", error)
+      throw new Error(`Failed to generate response: ${error instanceof Error ? error.message : "Unknown error"}`)
     }
   }
 
-  async analyzeRepository(repoData: any, userProfile?: {
-    targetJob?: string;
-    techStack?: string;
-    userNotes?: string;
-  }) {
-    const prompt = this.buildRepositoryAnalysisPrompt(repoData, userProfile);
+  async analyzeRepository(
+    repoData: any,
+    userProfile?: {
+      targetJob?: string
+      techStack?: string
+      userNotes?: string
+    },
+  ) {
+    const prompt = this.buildRepositoryAnalysisPrompt(repoData, userProfile)
 
     try {
-      const response = await this.generateResponse(prompt, [], 
-        "You are a helpful AI assistant that helps developers improve their GitHub repositories before applying for internships or jobs. Always respond in markdown format with the exact sections requested.");
-      
+      const response = await this.generateResponse(
+        prompt,
+        [],
+        "You are a helpful AI assistant that helps developers improve their GitHub repositories before applying for internships or jobs. Always respond in markdown format with the exact sections requested.",
+      )
+
       // Try to parse structured response, fallback to raw response if parsing fails
       try {
         return {
           analysis: response,
           suggestions: this.extractSuggestionsFromAnalysis(response),
           score: this.extractScoreFromAnalysis(response),
-          resumeBullet: this.extractResumeBulletFromAnalysis(response)
-        };
+          resumeBullet: this.extractResumeBulletFromAnalysis(response),
+        }
       } catch {
         return {
           analysis: response,
@@ -98,23 +104,26 @@ export class GeminiAI {
               title: "Repository Analysis",
               description: response,
               priority: "medium",
-            }
+            },
           ],
           score: 75,
-          resumeBullet: `Built ${repoData.name} using ${repoData.language || 'modern technologies'} with focus on clean code architecture and user experience.`
-        };
+          resumeBullet: `Built ${repoData.name} using ${repoData.language || "modern technologies"} with focus on clean code architecture and user experience.`,
+        }
       }
     } catch (error) {
-      console.error("Repository analysis error:", error);
-      throw new Error("Failed to analyze repository");
+      console.error("Repository analysis error:", error)
+      throw new Error("Failed to analyze repository")
     }
   }
 
-  private buildRepositoryAnalysisPrompt(repoData: any, userProfile?: {
-    targetJob?: string;
-    techStack?: string;
-    userNotes?: string;
-  }): string {
+  private buildRepositoryAnalysisPrompt(
+    repoData: any,
+    userProfile?: {
+      targetJob?: string
+      techStack?: string
+      userNotes?: string
+    },
+  ): string {
     return `🧠 **Repository Analysis Request**
 
 You are a helpful AI assistant that helps developers improve their GitHub repositories before applying for internships or jobs.
@@ -123,17 +132,17 @@ The user will provide you a repository's structure and basic information. Based 
 
 ---
 
-📁 **Repository Name**: ${repoData.name || 'Unknown'}
-📝 **Description**: ${repoData.description || 'No description provided'}
-📂 **Primary Language**: ${repoData.language || 'Unknown'}
+📁 **Repository Name**: ${repoData.name || "Unknown"}
+📝 **Description**: ${repoData.description || "No description provided"}
+📂 **Primary Language**: ${repoData.language || "Unknown"}
 ⭐ **Stars**: ${repoData.stargazers_count || 0}
 🍴 **Forks**: ${repoData.forks_count || 0}
-🔗 **Repository URL**: ${repoData.html_url || 'Not available'}
+🔗 **Repository URL**: ${repoData.html_url || "Not available"}
 
 🧑‍💻 **User Profile**:
-- Target job: ${userProfile?.targetJob || 'General software development'} (e.g. frontend dev, fullstack intern, ML engineer)
-- Tech stack: ${userProfile?.techStack || 'Not specified'} (e.g. React, TypeScript, Python, FastAPI)
-- Notes: ${userProfile?.userNotes || 'No additional notes'}
+- Target job: ${userProfile?.targetJob || "General software development"} (e.g. frontend dev, fullstack intern, ML engineer)
+- Tech stack: ${userProfile?.techStack || "Not specified"} (e.g. React, TypeScript, Python, FastAPI)
+- Notes: ${userProfile?.userNotes || "No additional notes"}
 
 ---
 
@@ -182,77 +191,79 @@ This is a solid showcase of frontend + AI integration. The use of GPT adds uniqu
 Tip: In interviews, emphasize the API integration challenge and how you handled prompt engineering.
 
 ### ⭐ Final Portfolio Score
-**7.5 / 10** — Good tech stack, cool idea, just missing polish (demos, tests, better README).`;
+**7.5 / 10** — Good tech stack, cool idea, just missing polish (demos, tests, better README).`
   }
 
   private extractSuggestionsFromAnalysis(analysis: string): any[] {
-    const suggestions = [];
-    const lines = analysis.split('\n');
-    let inSuggestionsSection = false;
-    
+    const suggestions = []
+    const lines = analysis.split("\n")
+    let inSuggestionsSection = false
+
     for (const line of lines) {
-      if (line.includes('🧹') && line.includes('Suggestions')) {
-        inSuggestionsSection = true;
-        continue;
+      if (line.includes("🧹") && line.includes("Suggestions")) {
+        inSuggestionsSection = true
+        continue
       }
-      
-      if (inSuggestionsSection && line.startsWith('###')) {
-        inSuggestionsSection = false;
-        break;
+
+      if (inSuggestionsSection && line.startsWith("###")) {
+        inSuggestionsSection = false
+        break
       }
-      
-      if (inSuggestionsSection && line.trim().startsWith('-')) {
-        const suggestion = line.trim().substring(1).trim();
+
+      if (inSuggestionsSection && line.trim().startsWith("-")) {
+        const suggestion = line.trim().substring(1).trim()
         if (suggestion) {
           suggestions.push({
             type: "improvement",
-            title: suggestion.split(' ')[0] || "Improvement",
+            title: suggestion.split(" ")[0] || "Improvement",
             description: suggestion,
-            priority: "medium"
-          });
+            priority: "medium",
+          })
         }
       }
     }
-    
-    return suggestions.length > 0 ? suggestions : [
-      {
-        type: "general",
-        title: "Code Review Needed",
-        description: "Consider adding more documentation and examples",
-        priority: "medium"
-      }
-    ];
+
+    return suggestions.length > 0
+      ? suggestions
+      : [
+          {
+            type: "general",
+            title: "Code Review Needed",
+            description: "Consider adding more documentation and examples",
+            priority: "medium",
+          },
+        ]
   }
 
   private extractScoreFromAnalysis(analysis: string): number {
-    const scoreMatch = analysis.match(/(\d+(?:\.\d+)?)\s*\/\s*10/);
+    const scoreMatch = analysis.match(/(\d+(?:\.\d+)?)\s*\/\s*10/)
     if (scoreMatch) {
-      return parseFloat(scoreMatch[1]) * 10; // Convert to 100-point scale
+      return Number.parseFloat(scoreMatch[1]) * 10 // Convert to 100-point scale
     }
-    return 75; // Default score
+    return 75 // Default score
   }
 
   private extractResumeBulletFromAnalysis(analysis: string): string {
-    const lines = analysis.split('\n');
-    let inResumeSection = false;
-    
+    const lines = analysis.split("\n")
+    let inResumeSection = false
+
     for (const line of lines) {
-      if (line.includes('🧠') && line.includes('Resume')) {
-        inResumeSection = true;
-        continue;
+      if (line.includes("🧠") && line.includes("Resume")) {
+        inResumeSection = true
+        continue
       }
-      
-      if (inResumeSection && line.startsWith('###')) {
-        inResumeSection = false;
-        break;
+
+      if (inResumeSection && line.startsWith("###")) {
+        inResumeSection = false
+        break
       }
-      
-      if (inResumeSection && line.trim().startsWith('>')) {
-        return line.trim().substring(1).trim();
+
+      if (inResumeSection && line.trim().startsWith(">")) {
+        return line.trim().substring(1).trim()
       }
     }
-    
-    return "Built a comprehensive application showcasing modern development practices and clean architecture.";
+
+    return "Built a comprehensive application showcasing modern development practices and clean architecture."
   }
 
   async generateReadme(repoData: any) {
@@ -270,13 +281,16 @@ Tip: In interviews, emphasize the API integration challenge and how you handled 
     - Contributing
     - License
     
-    Make it professional and informative.`;
+    Make it professional and informative.`
 
     try {
-      return await this.generateResponse(prompt, [], 
-        "You are a technical writer creating professional README documentation.");
+      return await this.generateResponse(
+        prompt,
+        [],
+        "You are a technical writer creating professional README documentation.",
+      )
     } catch (error) {
-      console.error("README generation error:", error);
+      console.error("README generation error:", error)
       // Fallback README
       return `# ${repoData.name}
 
@@ -285,7 +299,7 @@ ${repoData.description || "A project built with modern technologies."}
 ## Installation
 
 \`\`\`bash
-git clone ${repoData.clone_url || ''}
+git clone ${repoData.clone_url || ""}
 cd ${repoData.name}
 npm install
 \`\`\`
@@ -300,19 +314,22 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License.`;
+This project is licensed under the MIT License.`
     }
   }
 
-  async analyzeRepositoryDetailed(repoData: any, options?: {
-    readmeContent?: string;
-    folderStructure?: string;
-    userProfile?: {
-      targetJob?: string;
-      techStack?: string;
-      userNotes?: string;
-    };
-  }) {
+  async analyzeRepositoryDetailed(
+    repoData: any,
+    options?: {
+      readmeContent?: string
+      folderStructure?: string
+      userProfile?: {
+        targetJob?: string
+        techStack?: string
+        userNotes?: string
+      }
+    },
+  ) {
     const prompt = `🧠 **Detailed Repository Analysis Request**
 
 You are a helpful AI assistant that helps developers improve their GitHub repositories before applying for internships or jobs.
@@ -321,24 +338,24 @@ The user will provide you a repository's structure and basic information like th
 
 ---
 
-📁 **Repository Name**: ${repoData.name || 'Unknown'}
+📁 **Repository Name**: ${repoData.name || "Unknown"}
 📝 **README.md Content**: 
-${options?.readmeContent || 'No README content provided'}
+${options?.readmeContent || "No README content provided"}
 
 📂 **Folder Structure**:
-${options?.folderStructure || 'No folder structure provided'}
+${options?.folderStructure || "No folder structure provided"}
 
 🔗 **Repository Details**:
-- Description: ${repoData.description || 'No description'}
-- Language: ${repoData.language || 'Unknown'}
+- Description: ${repoData.description || "No description"}
+- Language: ${repoData.language || "Unknown"}
 - Stars: ${repoData.stargazers_count || 0}
 - Forks: ${repoData.forks_count || 0}
-- URL: ${repoData.html_url || 'Not available'}
+- URL: ${repoData.html_url || "Not available"}
 
 🧑‍💻 **User Profile**:
-- Target job: ${options?.userProfile?.targetJob || 'General software development'} (e.g. frontend dev, fullstack intern, ML engineer)
-- Tech stack: ${options?.userProfile?.techStack || 'Not specified'} (e.g. React, TypeScript, Python, FastAPI)
-- Notes: ${options?.userProfile?.userNotes || 'No additional notes'}
+- Target job: ${options?.userProfile?.targetJob || "General software development"} (e.g. frontend dev, fullstack intern, ML engineer)
+- Tech stack: ${options?.userProfile?.techStack || "Not specified"} (e.g. React, TypeScript, Python, FastAPI)
+- Notes: ${options?.userProfile?.userNotes || "No additional notes"}
 
 ---
 
@@ -367,62 +384,70 @@ Return your analysis in **markdown** format with the following sections:
 - Give a rating from 1-10 based on how job-ready this repo is
 - Brief explanation of the score with specific areas for improvement
 
-Keep the tone friendly but professional. Be specific and actionable in your suggestions.`;
+Keep the tone friendly but professional. Be specific and actionable in your suggestions.`
 
     try {
-      const response = await this.generateResponse(prompt, [], 
-        "You are a senior software engineer and technical recruiter helping developers improve their GitHub portfolios for job applications. Always respond in clean markdown format.");
-      
+      const response = await this.generateResponse(
+        prompt,
+        [],
+        "You are a senior software engineer and technical recruiter helping developers improve their GitHub portfolios for job applications. Always respond in clean markdown format.",
+      )
+
       return {
         analysis: response,
         suggestions: this.extractSuggestionsFromAnalysis(response),
         score: this.extractScoreFromAnalysis(response),
         resumeBullet: this.extractResumeBulletFromAnalysis(response),
-        recruitersView: this.extractRecruitersViewFromAnalysis(response)
-      };
+        recruitersView: this.extractRecruitersViewFromAnalysis(response),
+      }
     } catch (error) {
-      console.error("Detailed repository analysis error:", error);
-      throw new Error("Failed to analyze repository in detail");
+      console.error("Detailed repository analysis error:", error)
+      throw new Error("Failed to analyze repository in detail")
     }
   }
 
   private extractRecruitersViewFromAnalysis(analysis: string): string {
-    const lines = analysis.split('\n');
-    let inRecruitersSection = false;
-    let content = '';
-    
+    const lines = analysis.split("\n")
+    let inRecruitersSection = false
+    let content = ""
+
     for (const line of lines) {
-      if (line.includes('🔍') && line.includes('Recruiters')) {
-        inRecruitersSection = true;
-        continue;
+      if (line.includes("🔍") && line.includes("Recruiters")) {
+        inRecruitersSection = true
+        continue
       }
-      
-      if (inRecruitersSection && line.startsWith('##')) {
-        break;
+
+      if (inRecruitersSection && line.startsWith("##")) {
+        break
       }
-      
+
       if (inRecruitersSection && line.trim()) {
-        content += line.trim() + ' ';
+        content += line.trim() + " "
       }
     }
-    
-    return content.trim() || "This repository shows good technical skills and would be interesting to potential employers.";
+
+    return (
+      content.trim() || "This repository shows good technical skills and would be interesting to potential employers."
+    )
   }
 
   async generateCommitMessage(changes: string[]) {
     const prompt = `Generate a clear, conventional commit message for these changes:
     
     Changes:
-    ${changes.join('\n')}
+    ${changes.join("\n")}
     
-    Follow conventional commit format (feat:, fix:, docs:, etc.)`;
+    Follow conventional commit format (feat:, fix:, docs:, etc.)`
 
     try {
-      return await this.generateResponse(prompt, [], 
-        "You are a developer creating conventional commit messages. Keep them concise and clear.");
+      return await this.generateResponse(
+        prompt,
+        [],
+        "You are a developer creating conventional commit messages. Keep them concise and clear.",
+      )
     } catch (error) {
-      console.error("Commit message generation error:", error);
-      return "feat: update project files and documentation";
+      console.error("Commit message generation error:", error)
+      return "feat: update project files and documentation"
     }
   }
 }

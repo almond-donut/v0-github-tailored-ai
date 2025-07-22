@@ -1,11 +1,9 @@
 import { createClient } from "@supabase/supabase-js"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Supabase URL and Anon Key must be provided in environment variables.")
-}
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://qhoqcuvdgueeisqhkqio.supabase.co"
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFob3FjdXZkZ3VlZWlzcWhrcWlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDkxMTksImV4cCI6MjA2ODY4NTExOX0.e5ibUs6zWfPQ1et1BCWx22KWdw5Q1hhAyiLnCxQchzI"
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
@@ -94,13 +92,13 @@ export interface ChatSession {
 export interface ChatMessage {
   id: string
   session_id?: string
-  role: 'user' | 'assistant'
+  role: "user" | "assistant"
   content: string
   timestamp?: string
   created_at: string
   context?: {
     repository?: UserRepository
-    action_type?: 'analysis' | 'suggestion' | 'generation'
+    action_type?: "analysis" | "suggestion" | "generation"
   }
 }
 
@@ -108,9 +106,9 @@ export interface GeneratedContent {
   id: string
   user_id: string
   repository_id: string
-  content_type: 'readme' | 'file' | 'folder'
+  content_type: "readme" | "file" | "folder"
   content: Record<string, any>
-  status: 'draft' | 'applied' | 'rejected'
+  status: "draft" | "applied" | "rejected"
   github_commit_sha?: string
   created_at: string
 }
@@ -124,52 +122,41 @@ export const createUserProfile = async (userData: {
   avatar_url?: string
   bio?: string
 }) => {
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .insert([userData])
-    .select()
-    .single()
+  const { data, error } = await supabase.from("user_profiles").insert([userData]).select().single()
 
   return { data, error }
 }
 
 export const getUserProfile = async (userId: string) => {
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('id', userId)
-    .single()
+  const { data, error } = await supabase.from("user_profiles").select("*").eq("id", userId).single()
 
   return { data, error }
 }
 
 export const updateUserProfile = async (userId: string, updates: Partial<UserProfile>) => {
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .update(updates)
-    .eq('id', userId)
-    .select()
-    .single()
+  const { data, error } = await supabase.from("user_profiles").update(updates).eq("id", userId).select().single()
 
   return { data, error }
 }
 
 export const getUserRepositories = async (userId: string) => {
   const { data, error } = await supabase
-    .from('user_repositories')
-    .select('*')
-    .eq('user_id', userId)
-    .order('priority_order', { ascending: true })
+    .from("user_repositories")
+    .select("*")
+    .eq("user_id", userId)
+    .order("priority_order", { ascending: true })
 
   return { data, error }
 }
 
-export const saveUserRepositories = async (repositories: Omit<UserRepository, 'id' | 'created_at' | 'updated_at'>[]) => {
+export const saveUserRepositories = async (
+  repositories: Omit<UserRepository, "id" | "created_at" | "updated_at">[],
+) => {
   const { data, error } = await supabase
-    .from('user_repositories')
-    .upsert(repositories, { 
-      onConflict: 'user_id,github_repo_id',
-      ignoreDuplicates: false 
+    .from("user_repositories")
+    .upsert(repositories, {
+      onConflict: "user_id,github_repo_id",
+      ignoreDuplicates: false,
     })
     .select()
 
@@ -178,9 +165,9 @@ export const saveUserRepositories = async (repositories: Omit<UserRepository, 'i
 
 export const updateRepositoryOrder = async (repositoryId: string, newOrder: number) => {
   const { data, error } = await supabase
-    .from('user_repositories')
+    .from("user_repositories")
     .update({ priority_order: newOrder })
-    .eq('id', repositoryId)
+    .eq("id", repositoryId)
     .select()
     .single()
 

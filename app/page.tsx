@@ -1,821 +1,645 @@
 "use client"
 
-import React from "react"
 import { useState, useEffect } from "react"
-import { motion, useScroll, useTransform, useInView } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
   Github,
-  Sparkles,
-  FolderTree,
-  MessageSquare,
-  FileText,
-  GitPullRequest,
-  Zap,
-  Terminal,
   Star,
   Users,
+  TrendingUp,
+  Zap,
+  Shield,
+  FileText,
+  GitBranch,
   CheckCircle,
   ArrowRight,
-  Trophy,
-  Clock,
-  Shield,
+  Sparkles,
 } from "lucide-react"
-import { signInWithGitHub, getCurrentUser, type GitHubUser } from '@/lib/auth'
-import { useRouter } from 'next/navigation'
+import { supabase } from "@/lib/supabase"
 
 export default function HomePage() {
-  const [email, setEmail] = useState("")
-  const [demoStep, setDemoStep] = useState(0)
-  const [isLoading, setIsLoading] = useState(false)
-  const [user, setUser] = useState<GitHubUser | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
-  const { scrollYProgress } = useScroll()
-  const y = useTransform(scrollYProgress, [0, 1], ["0%", "50%"])
-  const opacity = useTransform(scrollYProgress, [0, 0.3], [1, 0])
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [user, setUser] = useState(null)
 
   useEffect(() => {
     // Check if user is already authenticated
     const checkAuth = async () => {
-      try {
-        console.log('HomePage: Checking authentication...')
-        const { user, error } = await getCurrentUser()
-        
-        if (error) {
-          console.error('HomePage: Auth check error:', error)
-          return
-        }
-        
-        if (user) {
-          console.log('HomePage: User found, redirecting to dashboard:', user.login)
-          setUser(user)
-          router.push('/dashboard')
-        } else {
-          console.log('HomePage: No user found')
-        }
-      } catch (err) {
-        console.error('HomePage: Auth check failed:', err)
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (session) {
+        setUser(session.user)
       }
     }
     checkAuth()
-  }, [router])
 
-  const handleGitHubLogin = async () => {
-    setIsLoading(true)
-    setError(null)
-    
-    try {
-      const { error } = await signInWithGitHub()
-      if (error) {
-        setError(error.message || 'Failed to authenticate with GitHub')
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        setUser(session.user)
+        window.location.href = "/dashboard"
       }
-    } catch (err) {
-      setError('An unexpected error occurred')
-      console.error('Login error:', err)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const handleGitHubConnect = async () => {
+    setIsConnecting(true)
+
+    // Debug: Log environment variables (without exposing secrets)
+    console.log("🔍 Debug Info:", {
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? "Set ✅" : "Missing ❌",
+      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "Set ✅" : "Missing ❌",
+      currentUrl: window.location.origin,
+    })
+
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "github",
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+          scopes: "repo user",
+        },
+      })
+
+      console.log("🔗 OAuth Response:", { data, error })
+
+      if (error) {
+        console.error("❌ OAuth error:", error)
+        alert(`GitHub connection failed: ${error.message}`)
+      }
+    } catch (error) {
+      console.error("❌ Connection error:", error)
+      alert(`Failed to connect to GitHub: ${error instanceof Error ? error.message : "Unknown error"}`)
     } finally {
-      setIsLoading(false)
+      setIsConnecting(false)
     }
   }
 
-  const features = [
-    {
-      icon: MessageSquare,
-      title: "AI Chatbot",
-      description: "Chat directly about your projects like a personal assistant",
-    },
-    {
-      icon: FolderTree,
-      title: "Repo Visualizer",
-      description: "View all files/folders in tree view with drag & drop",
-    },
-    {
-      icon: FileText,
-      title: "Code Summarizer",
-      description: "AI reads your files and provides summaries",
-    },
-    {
-      icon: Zap,
-      title: "Generate Structure",
-      description: "Create folders and files with AI commands",
-    },
-    {
-      icon: GitPullRequest,
-      title: "PR Generator",
-      description: "Auto-generate commits and pull requests",
-    },
-    {
-      icon: Github,
-      title: "GitHub OAuth",
-      description: "Login directly and manage all your repositories",
-    },
-  ]
-
-  const testimonials = [
-    {
-      name: "Sarah Chen",
-      role: "Frontend Developer",
-      company: "Shopify",
-      content: "Got 3 interview calls after cleaning my GitHub with this tool. The AI suggestions were spot-on!",
-      avatar: "/placeholder.svg?height=40&width=40",
-    },
-    {
-      name: "Marcus Johnson",
-      role: "Full Stack Developer",
-      company: "Stripe",
-      content: "Saved me 10+ hours of manual organization. The README generator alone is worth the subscription.",
-      avatar: "/placeholder.svg?height=40&width=40",
-    },
-    {
-      name: "Elena Rodriguez",
-      role: "Backend Engineer",
-      company: "Netflix",
-      content: "Finally my repos look professional. Recruiters actually started reaching out to me!",
-      avatar: "/placeholder.svg?height=40&width=40",
-    },
-  ]
-
-  const demoSteps = [
-    {
-      command: "$ ai organize my-portfolio",
-      responses: [
-        "🔍 Analyzing repository structure...",
-        "📁 Creating /docs folder",
-        "📝 Generating comprehensive README.md",
-        "🗂️ Organizing components/ directory",
-        "✨ Adding proper TypeScript types",
-        "🎨 Standardizing code formatting",
-      ],
-    },
-    {
-      command: "$ ai generate readme --detailed",
-      responses: [
-        "📖 Analyzing project dependencies...",
-        "🖼️ Generating project screenshots",
-        "📋 Creating installation guide",
-        "🚀 Adding deployment instructions",
-        "🧪 Documenting testing procedures",
-        "✅ README.md generated successfully!",
-      ],
-    },
-    {
-      command: "$ ai audit security",
-      responses: [
-        "🔒 Scanning for security vulnerabilities...",
-        "📦 Checking outdated dependencies",
-        "🔑 Reviewing API key exposure",
-        "⚠️ Found 3 issues, generating fixes...",
-        "✅ Security audit complete",
-        "📊 Repository score: 94/100",
-      ],
-    },
-  ]
-
-  // Floating animation component
-  const FloatingElement = ({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) => (
-    <motion.div
-      animate={{
-        y: [0, -10, 0],
-        rotate: [0, 1, -1, 0],
-      }}
-      transition={{
-        duration: 6,
-        repeat: Number.POSITIVE_INFINITY,
-        delay,
-        ease: "easeInOut",
-      }}
-    >
-      {children}
-    </motion.div>
-  )
-
-  // Animated section component
-  const AnimatedSection = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => {
-    const ref = React.useRef(null)
-    const isInView = useInView(ref, { once: true, margin: "-100px" })
-
-    return (
-      <motion.div
-        ref={ref}
-        initial={{ opacity: 0, y: 50 }}
-        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className={className}
-      >
-        {children}
-      </motion.div>
-    )
-  }
-
-  // Demo terminal component
-  const DemoTerminal = () => {
-    React.useEffect(() => {
-      const interval = setInterval(() => {
-        setDemoStep((prev) => (prev + 1) % demoSteps.length)
-      }, 4000)
-      return () => clearInterval(interval)
-    }, [])
-
-    return (
-      <div className="bg-gray-900 rounded-lg p-6 font-mono text-sm border border-gray-700">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="flex gap-1">
-            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-            <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-          </div>
-          <Terminal className="h-4 w-4 text-gray-400" />
-          <span className="text-gray-400">AI Assistant</span>
-        </div>
-        <div className="space-y-2">
-          <div className="text-green-400">{demoSteps[demoStep].command}</div>
-          {demoSteps[demoStep].responses.map((response, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.3 }}
-              className="text-gray-300"
-            >
-              {response}
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white font-mono overflow-hidden">
-      {/* Animated background elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <motion.div style={{ y }} className="absolute top-20 left-10 w-32 h-32 bg-purple-500/10 rounded-full blur-xl" />
-        <motion.div
-          style={{ y: useTransform(scrollYProgress, [0, 1], ["0%", "-30%"]) }}
-          className="absolute top-40 right-20 w-48 h-48 bg-pink-500/10 rounded-full blur-xl"
-        />
-        <motion.div
-          style={{ y: useTransform(scrollYProgress, [0, 1], ["0%", "80%"]) }}
-          className="absolute bottom-20 left-1/3 w-40 h-40 bg-blue-500/10 rounded-full blur-xl"
-        />
-      </div>
-
-      {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="border-b border-gray-800/50 backdrop-blur-sm relative z-10"
-      >
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <motion.div whileHover={{ scale: 1.05 }} className="flex items-center space-x-2">
-            <Github className="h-8 w-8" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+      {/* Navigation */}
+      <nav className="container mx-auto px-4 py-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Github className="h-8 w-8 text-purple-400" />
             <span className="text-xl font-bold">GitHub Tailored AI</span>
             <Badge variant="secondary" className="bg-purple-600/20 text-purple-300 border-purple-500/30">
               Beta
             </Badge>
-          </motion.div>
-          <div className="flex items-center space-x-4">
-            <motion.div whileHover={{ scale: 1.05 }}>
-              <Button variant="ghost" className="text-gray-300 hover:text-white">
-                Features
+          </div>
+          <div className="hidden md:flex items-center space-x-6">
+            <a href="#features" className="text-gray-300 hover:text-white transition-colors">
+              Features
+            </a>
+            <a href="#pricing" className="text-gray-300 hover:text-white transition-colors">
+              Pricing
+            </a>
+            {user ? (
+              <Button
+                asChild
+                variant="outline"
+                className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10 bg-transparent"
+              >
+                <a href="/dashboard">Dashboard</a>
               </Button>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.05 }}>
+            ) : (
               <Button variant="ghost" className="text-gray-300 hover:text-white">
-                Pricing
-              </Button>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.05 }}>
-              <Button variant="outline" className="border-gray-600 text-white hover:bg-gray-800 bg-transparent">
                 Sign In
               </Button>
-            </motion.div>
+            )}
           </div>
         </div>
-      </motion.header>
+      </nav>
 
       {/* Hero Section */}
-      <main className="container mx-auto px-4 py-20 relative z-10">
-        <motion.div style={{ opacity }} className="text-center max-w-4xl mx-auto">
-          {/* Social Proof Bar */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="flex items-center justify-center gap-6 mb-8 text-sm text-gray-400"
-          >
-            <div className="flex items-center gap-1">
-              <Star className="h-4 w-4 text-yellow-400" />
-              <span>1,247 developers hired</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Users className="h-4 w-4 text-blue-400" />
-              <span>5,000+ repos cleaned</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Trophy className="h-4 w-4 text-green-400" />
-              <span>94% job success rate</span>
-            </div>
-          </motion.div>
+      <section className="container mx-auto px-4 py-20 text-center">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-8 relative">
+            <div className="absolute -top-4 -right-4 w-8 h-8 bg-purple-500 rounded-full animate-bounce opacity-60"></div>
+            <div className="absolute -bottom-2 -left-6 w-6 h-6 bg-pink-500 rounded-full animate-pulse opacity-40"></div>
+            <Github className="h-16 w-16 mx-auto mb-6 text-purple-400 animate-float" />
+          </div>
 
-          {/* GitHub Logo */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="mb-8"
-          >
-            <FloatingElement>
-              <Github className="h-24 w-24 mx-auto text-gray-400 mb-6" />
-            </FloatingElement>
-          </motion.div>
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+            Your personal AI assistant to manage your projects
+          </h1>
 
-          {/* Main Heading */}
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-5xl md:text-6xl font-bold mb-6 leading-tight"
-          >
-            Your personal AI assistant to{" "}
-            <motion.span
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.8 }}
-              className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent"
+          <p className="text-xl md:text-2xl text-gray-300 mb-4">
+            Excited that you've created tons of projects, but it's a mess...
+          </p>
+
+          <p className="text-lg text-purple-300 mb-12 flex items-center justify-center gap-2">
+            We're here to help. <Sparkles className="h-5 w-5" />
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+            <Button
+              size="lg"
+              onClick={handleGitHubConnect}
+              disabled={isConnecting}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-4 text-lg font-semibold"
             >
-              manage your projects
-            </motion.span>
-          </motion.h1>
-
-          {/* Subheading */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-          >
-            <p className="text-xl md:text-2xl text-gray-300 mb-4 leading-relaxed">
-              Excited that you've created tons of projects, but it's a mess and you're scratching your head before
-              applying for a job?
-            </p>
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 1 }}
-              className="text-lg text-purple-300 mb-12 font-semibold"
+              <Github className="h-5 w-5 mr-2" />
+              {isConnecting ? "Connecting..." : "Connect GitHub"}
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10 px-8 py-4 text-lg bg-transparent"
             >
-              We're here to help. ✨
-            </motion.p>
-          </motion.div>
-
-          {/* CTA Form */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.8 }}
-            className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto mb-8"
-          >
-            <Input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="bg-gray-800/50 border-gray-600 text-white placeholder-gray-400 focus:border-purple-400"
-            />
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold px-8">
-                Get Started Free
-              </Button>
-            </motion.div>
-          </motion.div>
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 1.2 }}
-            className="text-sm text-gray-400 mb-16"
-          >
-            🎉 <strong>Limited Beta:</strong> First 1,000 users get lifetime 50% off
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 1 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center mb-20"
-          >
-            <motion.div whileHover={{ scale: 1.05 }}>
-              <Button
-                variant="outline"
-                className="border-gray-600 text-white hover:bg-gray-800 flex items-center gap-2 bg-transparent"
-                onClick={handleGitHubLogin}
-                disabled={isLoading}
-              >
-                <Github className="h-4 w-4" />
-                {isLoading ? 'Connecting...' : 'Connect GitHub'}
-              </Button>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.05 }}>
-              <Button variant="ghost" className="text-gray-300 hover:text-white">
-                Watch Demo
-              </Button>
-            </motion.div>
-          </motion.div>
-        </motion.div>
-
-        {/* Interactive Demo Section */}
-        <AnimatedSection className="mb-20">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">See AI in Action</h2>
-            <p className="text-gray-400">Watch how our AI transforms messy repositories into professional portfolios</p>
+              Watch Demo
+              <ArrowRight className="h-5 w-5 ml-2" />
+            </Button>
           </div>
-          <div className="max-w-4xl mx-auto">
-            <DemoTerminal />
-          </div>
-        </AnimatedSection>
 
-        {/* Value Proposition */}
-        <AnimatedSection className="text-center mb-20">
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-2xl p-8 border border-purple-500/20 max-w-4xl mx-auto"
-          >
-            <h2 className="text-3xl font-bold mb-4 text-purple-300">
-              Before you apply, we'll clean your GitHub for you
-            </h2>
-            <p className="text-lg text-gray-300 leading-relaxed mb-6">
-              Reorganize structure, write docs, summarize code, and prep your repo like a pro — all with AI.
-            </p>
-            <div className="flex items-center justify-center gap-8 text-sm">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-400" />
-                <span>No code changes without approval</span>
+          {/* Debug Section - Remove in production */}
+          {process.env.NODE_ENV === "development" && (
+            <Card className="bg-red-900/20 border-red-700/50 mb-8">
+              <CardContent className="p-4">
+                <h3 className="text-red-400 font-semibold mb-2">🔧 Debug Info (Development Only)</h3>
+                <div className="text-sm space-y-1">
+                  <div>Supabase URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? "✅ Set" : "❌ Missing"}</div>
+                  <div>Supabase Key: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "✅ Set" : "❌ Missing"}</div>
+                  <div>Current URL: {typeof window !== "undefined" ? window.location.origin : "Server-side"}</div>
+                  <div>User State: {user ? `✅ Authenticated (${user.email})` : "❌ Not authenticated"}</div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Social Proof */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-2xl mx-auto">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-400">1,247</div>
+              <div className="text-gray-400">developers hired</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-pink-400">5,000+</div>
+              <div className="text-gray-400">repos cleaned</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-400">94%</div>
+              <div className="text-gray-400">job success rate</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Interactive Demo */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-12">See it in action</h2>
+          <Card className="bg-gray-900/50 border-gray-700/50 backdrop-blur-sm">
+            <CardContent className="p-8">
+              <div className="bg-black rounded-lg p-6 font-mono text-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <span className="ml-4 text-gray-400">Terminal</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-green-400">$ github-ai analyze my-portfolio</div>
+                  <div className="text-gray-300">🔍 Analyzing repository structure...</div>
+                  <div className="text-gray-300">📝 Generating README improvements...</div>
+                  <div className="text-gray-300">🎯 Optimizing for job applications...</div>
+                  <div className="text-purple-400">✨ Analysis complete! Score: 94/100</div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-blue-400" />
-                <span>Preview all changes first</span>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" className="container mx-auto px-4 py-20">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-bold mb-4">Everything you need to land your dream job</h2>
+          <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+            Transform your messy GitHub into a professional portfolio that recruiters love
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <Card className="bg-gray-800/30 border-gray-700/50 hover:border-purple-500/50 transition-all duration-300">
+            <CardHeader>
+              <Zap className="h-8 w-8 text-yellow-400 mb-2" />
+              <CardTitle>AI-Powered Analysis</CardTitle>
+              <CardDescription>
+                Get instant insights on your repository structure, code quality, and documentation
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="bg-gray-800/30 border-gray-700/50 hover:border-purple-500/50 transition-all duration-300">
+            <CardHeader>
+              <FileText className="h-8 w-8 text-blue-400 mb-2" />
+              <CardTitle>Smart README Generation</CardTitle>
+              <CardDescription>
+                Automatically generate professional README files that showcase your projects effectively
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="bg-gray-800/30 border-gray-700/50 hover:border-purple-500/50 transition-all duration-300">
+            <CardHeader>
+              <GitBranch className="h-8 w-8 text-green-400 mb-2" />
+              <CardTitle>Repository Organization</CardTitle>
+              <CardDescription>
+                Reorganize your folders and files with AI suggestions for better maintainability
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="bg-gray-800/30 border-gray-700/50 hover:border-purple-500/50 transition-all duration-300">
+            <CardHeader>
+              <Shield className="h-8 w-8 text-purple-400 mb-2" />
+              <CardTitle>Security Scanning</CardTitle>
+              <CardDescription>Identify and fix security vulnerabilities before they become a problem</CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="bg-gray-800/30 border-gray-700/50 hover:border-purple-500/50 transition-all duration-300">
+            <CardHeader>
+              <TrendingUp className="h-8 w-8 text-pink-400 mb-2" />
+              <CardTitle>Portfolio Scoring</CardTitle>
+              <CardDescription>
+                Get a comprehensive score for each repository and track your improvement over time
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="bg-gray-800/30 border-gray-700/50 hover:border-purple-500/50 transition-all duration-300">
+            <CardHeader>
+              <CheckCircle className="h-8 w-8 text-green-400 mb-2" />
+              <CardTitle>Job-Ready Optimization</CardTitle>
+              <CardDescription>
+                Tailor your repositories for specific job applications and industry standards
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-bold mb-4">Loved by developers worldwide</h2>
+          <p className="text-xl text-gray-400">See what our users have to say</p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-8">
+          <Card className="bg-gray-800/30 border-gray-700/50">
+            <CardContent className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="flex text-yellow-400">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="h-4 w-4 fill-current" />
+                  ))}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-yellow-400" />
-                <span>5-minute setup</span>
+              <p className="text-gray-300 mb-4">
+                "GitHub Tailored AI helped me land my first developer job! The AI suggestions were spot-on."
+              </p>
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
+                  S
+                </div>
+                <div className="ml-3">
+                  <div className="font-semibold">Sarah Chen</div>
+                  <div className="text-sm text-gray-400">Frontend Developer</div>
+                </div>
               </div>
-            </div>
-          </motion.div>
-        </AnimatedSection>
+            </CardContent>
+          </Card>
 
-        {/* Features Grid */}
-        <AnimatedSection className="mb-20">
-          <h2 className="text-3xl font-bold text-center mb-12">Core Features</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                whileHover={{ scale: 1.05, y: -5 }}
-              >
-                <Card className="bg-gray-800/30 border-gray-700/50 hover:border-purple-500/50 transition-colors h-full">
-                  <CardContent className="p-6">
-                    <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.5 }}>
-                      <feature.icon className="h-8 w-8 text-purple-400 mb-4" />
-                    </motion.div>
-                    <h3 className="text-lg font-semibold mb-2 text-white">{feature.title}</h3>
-                    <p className="text-gray-400 text-sm">{feature.description}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </AnimatedSection>
+          <Card className="bg-gray-800/30 border-gray-700/50">
+            <CardContent className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="flex text-yellow-400">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="h-4 w-4 fill-current" />
+                  ))}
+                </div>
+              </div>
+              <p className="text-gray-300 mb-4">
+                "My GitHub went from a mess to a professional portfolio in just one day. Amazing!"
+              </p>
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
+                  M
+                </div>
+                <div className="ml-3">
+                  <div className="font-semibold">Marcus Johnson</div>
+                  <div className="text-sm text-gray-400">Full Stack Developer</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Testimonials */}
-        <AnimatedSection className="mb-20">
-          <h2 className="text-3xl font-bold text-center mb-12">Developers Love It</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((testimonial, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                whileHover={{ scale: 1.02 }}
-              >
-                <Card className="bg-gray-800/30 border-gray-700/50 h-full">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <img
-                        src={testimonial.avatar || "/placeholder.svg"}
-                        alt={testimonial.name}
-                        className="w-10 h-10 rounded-full"
-                      />
-                      <div>
-                        <h4 className="font-semibold text-white">{testimonial.name}</h4>
-                        <p className="text-sm text-gray-400">
-                          {testimonial.role} at {testimonial.company}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-gray-300 text-sm italic">"{testimonial.content}"</p>
-                    <div className="flex gap-1 mt-3">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="h-4 w-4 text-yellow-400 fill-current" />
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </AnimatedSection>
+          <Card className="bg-gray-800/30 border-gray-700/50">
+            <CardContent className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="flex text-yellow-400">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="h-4 w-4 fill-current" />
+                  ))}
+                </div>
+              </div>
+              <p className="text-gray-300 mb-4">
+                "The AI-generated READMEs are better than what I could write myself. Highly recommend!"
+              </p>
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-semibold">
+                  A
+                </div>
+                <div className="ml-3">
+                  <div className="font-semibold">Alex Rivera</div>
+                  <div className="text-sm text-gray-400">Backend Developer</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
 
-        {/* Pricing Section */}
-        <AnimatedSection className="mb-20">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">Simple, Transparent Pricing</h2>
-            <p className="text-gray-400">Start free, upgrade when you need more power</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {/* Free Tier */}
-            <div>
-              <Card className="bg-gray-800/30 border-gray-700/50 h-full">
-                <CardContent className="p-6">
-                  <div className="text-center mb-6">
-                    <h3 className="text-xl font-bold mb-2">Free</h3>
-                    <div className="text-3xl font-bold mb-2">$0</div>
-                    <p className="text-gray-400 text-sm">Perfect for getting started</p>
-                  </div>
-                  <ul className="space-y-3 mb-6">
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-sm">3 repositories</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-sm">Basic AI cleanup</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-sm">README generator</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-sm">Gemini AI powered</span>
-                    </li>
-                  </ul>
-                  <Button
-                    variant="outline"
-                    className="w-full border-gray-600 text-white hover:bg-gray-800 bg-transparent"
-                  >
-                    Get Started Free
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+      {/* Pricing Section */}
+      <section id="pricing" className="container mx-auto px-4 py-20">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-bold mb-4">Choose your plan</h2>
+          <p className="text-xl text-gray-400">Start free, upgrade when you need more</p>
+        </div>
 
-            {/* Pro Tier */}
-            <div>
-              <Card className="bg-gradient-to-b from-purple-900/20 to-pink-900/20 border-purple-500/50 h-full relative">
-                <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-purple-600 to-pink-600">
-                  Most Popular
-                </Badge>
-                <CardContent className="p-6">
-                  <div className="text-center mb-6">
-                    <h3 className="text-xl font-bold mb-2">Pro</h3>
-                    <div className="text-3xl font-bold mb-2">
-                      $19<span className="text-lg text-gray-400">/month</span>
-                    </div>
-                    <p className="text-gray-400 text-sm">For serious developers</p>
-                  </div>
-                  <ul className="space-y-3 mb-6">
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-sm">Unlimited repositories</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-sm">Advanced AI features</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-sm">Priority processing</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-sm">Custom templates</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-sm">Portfolio scoring</span>
-                    </li>
-                  </ul>
-                  <Button className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
-                    Start Pro Trial
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Enterprise Tier */}
-            <div>
-              <Card className="bg-gray-800/30 border-gray-700/50 h-full">
-                <CardContent className="p-6">
-                  <div className="text-center mb-6">
-                    <h3 className="text-xl font-bold mb-2">Enterprise</h3>
-                    <div className="text-3xl font-bold mb-2">Custom</div>
-                    <p className="text-gray-400 text-sm">For teams and organizations</p>
-                  </div>
-                  <ul className="space-y-3 mb-6">
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-sm">Everything in Pro</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-sm">Team collaboration</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-sm">Custom AI models</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-sm">White-label solution</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-sm">24/7 support</span>
-                    </li>
-                  </ul>
-                  <Button
-                    variant="outline"
-                    className="w-full border-gray-600 text-white hover:bg-gray-800 bg-transparent"
-                  >
-                    Contact Sales
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </AnimatedSection>
-
-        {/* Target Audience */}
-        <AnimatedSection className="text-center mb-20">
-          <h2 className="text-3xl font-bold mb-8">Who Needs This?</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              "Students & Junior Developers applying for jobs",
-              "Indie hackers with multiple side projects",
-              "Open source maintainers wanting clean repos",
-              "Developers who hate documentation but want to look professional",
-            ].map((audience, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, scale: 0.8 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                whileHover={{ scale: 1.05 }}
-                className="bg-gray-800/20 rounded-lg p-6 border border-gray-700/30"
-              >
-                <motion.div
-                  animate={{ rotate: [0, 10, -10, 0] }}
-                  transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY, delay: index * 0.5 }}
-                >
-                  <Sparkles className="h-6 w-6 text-yellow-400 mb-3 mx-auto" />
-                </motion.div>
-                <p className="text-gray-300 text-sm">{audience}</p>
-              </motion.div>
-            ))}
-          </div>
-        </AnimatedSection>
-
-        {/* Final CTA */}
-        <AnimatedSection className="text-center mb-20">
-          <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-2xl p-12 border border-purple-500/20 max-w-4xl mx-auto">
-            <h2 className="text-4xl font-bold mb-4">Ready to Transform Your GitHub?</h2>
-            <p className="text-xl text-gray-300 mb-8">
-              Join 1,247 developers who landed their dream jobs with clean, professional repositories
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
-              <Input
-                type="email"
-                placeholder="Enter your email"
-                className="bg-gray-800/50 border-gray-600 text-white placeholder-gray-400 focus:border-purple-400"
-              />
-              <Button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold px-8 flex items-center gap-2">
-                Start Free <ArrowRight className="h-4 w-4" />
+        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <Card className="bg-gray-800/30 border-gray-700/50">
+            <CardHeader>
+              <CardTitle className="text-2xl">Free</CardTitle>
+              <CardDescription>Perfect for getting started</CardDescription>
+              <div className="text-3xl font-bold">
+                $0<span className="text-lg font-normal text-gray-400">/month</span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3 mb-6">
+                <li className="flex items-center">
+                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />3 repository analyses per month
+                </li>
+                <li className="flex items-center">
+                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                  Basic README generation
+                </li>
+                <li className="flex items-center">
+                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                  Portfolio scoring
+                </li>
+              </ul>
+              <Button className="w-full bg-transparent" variant="outline">
+                Get Started
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-b from-purple-900/50 to-pink-900/50 border-purple-500/50 relative">
+            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+              <Badge className="bg-gradient-to-r from-purple-600 to-pink-600">Most Popular</Badge>
             </div>
-            <p className="text-sm text-gray-400 mt-4">
-              ✨ No credit card required • 🚀 Setup in 2 minutes • 💯 30-day money-back guarantee
-            </p>
-          </div>
-        </AnimatedSection>
-      </main>
+            <CardHeader>
+              <CardTitle className="text-2xl">Pro</CardTitle>
+              <CardDescription>For serious developers</CardDescription>
+              <div className="text-3xl font-bold">
+                $19<span className="text-lg font-normal text-gray-400">/month</span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3 mb-6">
+                <li className="flex items-center">
+                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                  Unlimited repository analyses
+                </li>
+                <li className="flex items-center">
+                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                  Advanced AI suggestions
+                </li>
+                <li className="flex items-center">
+                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                  Custom README templates
+                </li>
+                <li className="flex items-center">
+                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                  Priority support
+                </li>
+              </ul>
+              <Button className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+                Upgrade to Pro
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gray-800/30 border-gray-700/50">
+            <CardHeader>
+              <CardTitle className="text-2xl">Enterprise</CardTitle>
+              <CardDescription>For teams and organizations</CardDescription>
+              <div className="text-3xl font-bold">
+                $99<span className="text-lg font-normal text-gray-400">/month</span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3 mb-6">
+                <li className="flex items-center">
+                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                  Everything in Pro
+                </li>
+                <li className="flex items-center">
+                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                  Team collaboration
+                </li>
+                <li className="flex items-center">
+                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                  Custom integrations
+                </li>
+                <li className="flex items-center">
+                  <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                  Dedicated support
+                </li>
+              </ul>
+              <Button className="w-full bg-transparent" variant="outline">
+                Contact Sales
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* Target Audience */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-bold mb-4">Perfect for every developer</h2>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <Card className="bg-gray-800/30 border-gray-700/50 text-center">
+            <CardContent className="p-6">
+              <Users className="h-12 w-12 text-blue-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold mb-2">New Graduates</h3>
+              <p className="text-gray-400">Make your first impression count with a polished GitHub profile</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gray-800/30 border-gray-700/50 text-center">
+            <CardContent className="p-6">
+              <TrendingUp className="h-12 w-12 text-green-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold mb-2">Career Switchers</h3>
+              <p className="text-gray-400">Showcase your new skills and transition into tech successfully</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gray-800/30 border-gray-700/50 text-center">
+            <CardContent className="p-6">
+              <Star className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold mb-2">Experienced Devs</h3>
+              <p className="text-gray-400">Optimize your portfolio for senior roles and leadership positions</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gray-800/30 border-gray-700/50 text-center">
+            <CardContent className="p-6">
+              <Sparkles className="h-12 w-12 text-purple-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold mb-2">Freelancers</h3>
+              <p className="text-gray-400">Build trust with clients through professional project presentations</p>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="text-center max-w-3xl mx-auto">
+          <h2 className="text-4xl font-bold mb-6">Ready to transform your GitHub?</h2>
+          <p className="text-xl text-gray-400 mb-8">
+            Join thousands of developers who've already landed their dream jobs with our help
+          </p>
+          <Button
+            size="lg"
+            onClick={handleGitHubConnect}
+            disabled={isConnecting}
+            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-12 py-4 text-xl font-semibold"
+          >
+            <Github className="h-6 w-6 mr-3" />
+            {isConnecting ? "Connecting..." : "Start Free Today"}
+          </Button>
+        </div>
+      </section>
 
       {/* Footer */}
-      <AnimatedSection>
-        <footer className="border-t border-gray-800/50 mt-20">
-          <div className="container mx-auto px-4 py-12">
-            <div className="grid md:grid-cols-4 gap-8">
-              <div>
-                <div className="flex items-center space-x-2 mb-4">
-                  <Github className="h-6 w-6" />
-                  <span className="font-bold">GitHub Tailored AI</span>
-                </div>
-                <p className="text-gray-400 text-sm">
-                  Transform your messy repositories into professional portfolios with AI.
-                </p>
+      <footer className="border-t border-gray-800 bg-gray-900/50">
+        <div className="container mx-auto px-4 py-12">
+          <div className="grid md:grid-cols-4 gap-8">
+            <div>
+              <div className="flex items-center space-x-2 mb-4">
+                <Github className="h-6 w-6 text-purple-400" />
+                <span className="text-lg font-bold">GitHub Tailored AI</span>
               </div>
-              <div>
-                <h4 className="font-semibold mb-4">Product</h4>
-                <ul className="space-y-2 text-sm text-gray-400">
-                  <li>
-                    <a href="#" className="hover:text-white">
-                      Features
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-white">
-                      Pricing
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-white">
-                      API
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-white">
-                      Changelog
-                    </a>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-4">Company</h4>
-                <ul className="space-y-2 text-sm text-gray-400">
-                  <li>
-                    <a href="#" className="hover:text-white">
-                      About
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-white">
-                      Blog
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-white">
-                      Careers
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-white">
-                      Contact
-                    </a>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-4">Resources</h4>
-                <ul className="space-y-2 text-sm text-gray-400">
-                  <li>
-                    <a href="#" className="hover:text-white">
-                      Documentation
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-white">
-                      Help Center
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-white">
-                      Community
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-white">
-                      Status
-                    </a>
-                  </li>
-                </ul>
-              </div>
+              <p className="text-gray-400">
+                Transform your GitHub into a job-winning portfolio with AI-powered optimization.
+              </p>
             </div>
-            <div className="border-t border-gray-800/50 mt-8 pt-8 text-center text-gray-400">
-              <p>&copy; 2024 GitHub Tailored AI. Built with ❤️ for developers.</p>
+            <div>
+              <h3 className="font-semibold mb-4">Product</h3>
+              <ul className="space-y-2 text-gray-400">
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    Features
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    Pricing
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    API
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    Integrations
+                  </a>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-4">Company</h3>
+              <ul className="space-y-2 text-gray-400">
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    About
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    Blog
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    Careers
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    Contact
+                  </a>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-4">Support</h3>
+              <ul className="space-y-2 text-gray-400">
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    Help Center
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    Documentation
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    Status
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    Privacy
+                  </a>
+                </li>
+              </ul>
             </div>
           </div>
-        </footer>
-      </AnimatedSection>
+          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+            <p>&copy; 2024 GitHub Tailored AI. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
+
+      <style jsx>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+        .animate-float {
+          animation: float 3s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   )
 }
