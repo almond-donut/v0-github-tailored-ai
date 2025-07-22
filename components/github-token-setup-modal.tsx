@@ -91,112 +91,101 @@ export function GitHubTokenSetupModal({ isOpen, onClose }: GitHubTokenSetupModal
     )
   }
 
-  const renderStep0 = () => (
-    <div className="space-y-6">
-      <div className="text-center">
-        <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-4">
-          <Github className="h-8 w-8 text-white" />
-        </div>
-        <h3 className="text-xl font-semibold mb-2">Choose Your Experience</h3>
-        <p className="text-gray-600 text-sm">
-          How would you like to get started with GitHub integration?
-        </p>
+  const renderStep0 = () => {
+    const Feature = ({ children, color = 'green' }: { children: React.ReactNode, color?: 'green' | 'blue' }) => (
+      <div className="flex items-center gap-2">
+        <CheckCircle className={`h-4 w-4 ${color === 'green' ? 'text-green-500' : 'text-blue-500'}`} />
+        <span className="text-slate-300 text-sm">{children}</span>
       </div>
+    )
 
-      <div className="grid gap-4">
-        {/* Quick Start Option */}
-        <Card className="border-2 border-dashed border-green-300 bg-gradient-to-br from-green-50 to-emerald-50 hover:border-green-400 transition-colors cursor-pointer">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-                <Zap className="h-5 w-5 text-white" />
+    return (
+      <div className="space-y-8 p-2">
+        <div className="text-center space-y-4">
+          <div className="mx-auto w-20 h-20 bg-slate-900 border border-slate-800 rounded-full flex items-center justify-center">
+            <Github className="h-10 w-10 text-slate-400" />
+          </div>
+          <div>
+            <h3 className="text-2xl font-bold text-slate-100">Choose Your Experience</h3>
+            <p className="text-slate-400 mt-2">
+              How would you like to get started with GitHub integration?
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Quick Start Option */}
+          <div
+            onClick={handleClose}
+            className="bg-slate-900 border border-green-500/30 hover:border-green-500/80 rounded-xl p-6 space-y-6 transition-all cursor-pointer"
+          >
+            <div className="flex items-start gap-4">
+              <div className="bg-green-500/10 p-2 rounded-lg">
+                <Zap className="h-6 w-6 text-green-400" />
               </div>
               <div>
-                <CardTitle className="text-lg text-green-800">Quick Start</CardTitle>
-                <CardDescription className="text-green-700">
-                  Start exploring immediately with basic features
-                </CardDescription>
+                <h4 className="font-bold text-green-400 text-lg">Quick Start</h4>
+                <p className="text-slate-400 text-sm">Start exploring immediately</p>
               </div>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-                ✓ Repository browsing
-              </Badge>
-              <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-                ✓ Basic file viewing
-              </Badge>
-              <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-                ✓ Project overview
-              </Badge>
+            <div className="space-y-3">
+              <Feature>Repository browsing</Feature>
+              <Feature>Basic file viewing</Feature>
+              <Feature>Project overview</Feature>
             </div>
-            <p className="text-xs text-green-700">
-              Perfect for getting a feel for the platform. You can always upgrade later!
+            <p className="text-xs text-slate-500">
+              Perfect for a quick look. You can always set up advanced features later.
             </p>
-            <Button 
-              variant="default" 
-              className="w-full bg-green-600 hover:bg-green-700"
-              onClick={handleClose}
+            <Button
+              variant="default"
+              className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-700 text-slate-100 font-bold py-3"
             >
-              Start Exploring Now
+              Start Exploring
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Advanced Setup Option */}
-        <Card className="border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-indigo-50 hover:border-blue-400 transition-colors cursor-pointer">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                <Shield className="h-5 w-5 text-white" />
+          {/* Advanced Setup Option */}
+          <div
+            onClick={skipToAdvanced}
+            className="bg-slate-900 border border-blue-500/30 hover:border-blue-500/80 rounded-xl p-6 space-y-6 transition-all cursor-pointer"
+          >
+            <div className="flex items-start gap-4">
+              <div className="bg-blue-500/10 p-2 rounded-lg">
+                <Shield className="h-6 w-6 text-blue-400" />
               </div>
               <div>
-                <CardTitle className="text-lg text-blue-800">Advanced Setup</CardTitle>
-                <CardDescription className="text-blue-700">
-                  Unlock all features with GitHub token
-                </CardDescription>
+                <h4 className="font-bold text-blue-400 text-lg">Advanced Setup</h4>
+                <p className="text-slate-400 text-sm">Unlock all features</p>
               </div>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
-                ✓ Branch visualization
-              </Badge>
-              <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
-                ✓ Commit history
-              </Badge>
-              <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
-                ✓ Real-time sync
-              </Badge>
-              <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
-                ✓ Advanced analytics
-              </Badge>
+            <div className="space-y-3">
+              <Feature color="blue">Branch visualization</Feature>
+              <Feature color="blue">Commit history</Feature>
+              <Feature color="blue">Real-time sync</Feature>
+              <Feature color="blue">Advanced analytics</Feature>
             </div>
-            <p className="text-xs text-blue-700">
-              Takes 2 minutes to setup. Get the full power of GitHub integration.
+            <p className="text-xs text-slate-500">
+              Get the full power of GitHub integration. Setup takes only 2 minutes.
             </p>
-            <Button 
-              variant="default" 
-              className="w-full bg-blue-600 hover:bg-blue-700"
-              onClick={skipToAdvanced}
+            <Button
+              variant="default"
+              className="w-full bg-white hover:bg-gray-200 text-slate-900 font-bold py-3"
             >
               Setup GitHub Token
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </div>
 
-      <div className="text-center pt-2">
-        <Button variant="ghost" size="sm" onClick={handleClose} className="text-gray-500 hover:text-gray-700">
-          Skip for now
-        </Button>
+        <div className="text-center">
+          <Button variant="link" size="sm" onClick={handleClose} className="text-slate-500 hover:text-slate-300">
+            Skip for now
+          </Button>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   const renderStep1 = () => (
     <div className="space-y-6">
@@ -416,30 +405,33 @@ export function GitHubTokenSetupModal({ isOpen, onClose }: GitHubTokenSetupModal
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <Github className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <DialogTitle className="text-xl">GitHub Integration</DialogTitle>
-              <DialogDescription className="text-sm text-gray-600">
-                {currentStep === 0 && "Choose how you'd like to get started"}
-                {currentStep === 1 && "Let's create your GitHub token"}
-                {currentStep === 2 && "Configure the required permissions"}
-                {currentStep === 3 && "Secure your access with the token"}
-              </DialogDescription>
-            </div>
-          </div>
-          {currentStep > 0 && renderStepIndicator()}
-        </DialogHeader>
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto bg-[#0D1117] text-gray-300 border-slate-800 p-0">
+        <div className={currentStep > 0 ? "p-6" : ""}>
+          <DialogHeader className="space-y-3">
+            {currentStep > 0 && (
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center">
+                  <Github className="h-4 w-4 text-slate-400" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl text-white">GitHub Integration</DialogTitle>
+                  <DialogDescription className="text-sm text-gray-400">
+                    {currentStep === 1 && "Let's create your GitHub token"}
+                    {currentStep === 2 && "Configure the required permissions"}
+                    {currentStep === 3 && "Secure your access with the token"}
+                  </DialogDescription>
+                </div>
+              </div>
+            )}
+            {currentStep > 0 && renderStepIndicator()}
+          </DialogHeader>
 
-        <div className="mt-6">
-          {currentStep === 0 && renderStep0()}
-          {currentStep === 1 && renderStep1()}
-          {currentStep === 2 && renderStep2()}
-          {currentStep === 3 && renderStep3()}
+          <div className={currentStep > 0 ? "mt-6" : ""}>
+            {currentStep === 0 && renderStep0()}
+            {currentStep === 1 && renderStep1()}
+            {currentStep === 2 && renderStep2()}
+            {currentStep === 3 && renderStep3()}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
