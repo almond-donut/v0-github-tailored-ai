@@ -15,6 +15,7 @@ import { CompactRepositoryList } from '@/components/compact-repository-list'
 import { ChatInterface } from '@/components/chat/chat-interface'
 import { GitHubTokenSetupModal } from '@/components/github-token-setup-modal'
 import { useGitHubTokenSetup } from '@/hooks/use-github-token-setup'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 export default function Dashboard() {
   const [user, setUser] = useState<GitHubUser | null>(null)
@@ -242,7 +243,7 @@ export default function Dashboard() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
+          <Card className="bg-neutral-900 border-neutral-800">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Repositories</CardTitle>
               <Github className="h-4 w-4 text-muted-foreground" />
@@ -261,7 +262,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="bg-neutral-900 border-neutral-800">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Organized</CardTitle>
               <Plus className="h-4 w-4 text-muted-foreground" />
@@ -280,7 +281,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="bg-neutral-900 border-neutral-800">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Stars</CardTitle>
               <Star className="h-4 w-4 text-muted-foreground" />
@@ -303,7 +304,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           <div className="lg:col-span-2 space-y-8">
             {/* Repository List */}
-            <Card>
+            <Card className="bg-neutral-900 border-neutral-800">
               <CardHeader>
                 <CardTitle>Your Repositories</CardTitle>
                 <CardDescription>
@@ -318,16 +319,18 @@ export default function Dashboard() {
                     <div className="h-8 bg-muted rounded w-full animate-pulse"></div>
                   </div>
                 ) : (
-                  <CompactRepositoryList
-                    repositories={repositories}
-                    onChange={handleRepositoryOrderChange}
-                  />
+                  <ScrollArea className="h-[400px] w-full rounded-md p-4">
+                    <CompactRepositoryList
+                      repositories={repositories}
+                      onChange={handleRepositoryOrderChange}
+                    />
+                  </ScrollArea>
                 )}
               </CardContent>
             </Card>
 
             {/* Getting Started Guide */}
-            <Card>
+            <Card className="bg-neutral-900 border-neutral-800">
               <CardHeader>
                 <CardTitle>Getting Started</CardTitle>
                 <CardDescription>
@@ -336,7 +339,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-medium">
+                  <div className="flex-shrink-0 w-6 h-6 bg-neutral-300 text-neutral-900 rounded-full flex items-center justify-center text-sm font-medium">
                     1
                   </div>
                   <div>
@@ -398,9 +401,6 @@ export default function Dashboard() {
       <GitHubTokenSetupModal
         isOpen={tokenSetup.showSetupModal}
         onClose={tokenSetup.closeSetupModal}
-        onTokenSubmit={tokenSetup.saveToken}
-        isLoading={tokenSetup.isLoading}
-        error={tokenSetup.error}
       />
     </div>
   )

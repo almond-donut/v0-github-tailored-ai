@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Github, Key, Shield, Zap, CheckCircle, ArrowRight, ArrowLeft, ExternalLink, Copy, Eye, EyeOff } from 'lucide-react'
 import { useGitHubTokenSetup } from '@/hooks/use-github-token-setup'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 interface GitHubTokenSetupModalProps {
   isOpen: boolean
@@ -74,15 +75,15 @@ export function GitHubTokenSetupModal({ isOpen, onClose }: GitHubTokenSetupModal
             <div className={`
               w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
               ${index <= currentStep 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-200 text-gray-500'
+                ? 'bg-neutral-300 text-neutral-900' 
+                : 'bg-neutral-800 text-neutral-400'
               }
             `}>
               {index < currentStep ? <CheckCircle className="h-4 w-4" /> : index + 1}
             </div>
             {index < steps.length - 1 && (
               <div className={`w-8 h-0.5 mx-2 ${
-                index < currentStep ? 'bg-blue-600' : 'bg-gray-200'
+                index < currentStep ? 'bg-neutral-300' : 'bg-neutral-800'
               }`} />
             )}
           </div>
@@ -92,9 +93,9 @@ export function GitHubTokenSetupModal({ isOpen, onClose }: GitHubTokenSetupModal
   }
 
   const renderStep0 = () => {
-    const Feature = ({ children, color = 'green' }: { children: React.ReactNode, color?: 'green' | 'blue' }) => (
+    const Feature = ({ children }: { children: React.ReactNode }) => (
       <div className="flex items-center gap-2">
-        <CheckCircle className={`h-4 w-4 ${color === 'green' ? 'text-green-500' : 'text-blue-500'}`} />
+        <CheckCircle className="h-4 w-4 text-neutral-500" />
         <span className="text-slate-300 text-sm">{children}</span>
       </div>
     )
@@ -117,14 +118,14 @@ export function GitHubTokenSetupModal({ isOpen, onClose }: GitHubTokenSetupModal
           {/* Quick Start Option */}
           <div
             onClick={handleClose}
-            className="bg-slate-900 border border-green-500/30 hover:border-green-500/80 rounded-xl p-6 space-y-6 transition-all cursor-pointer"
+            className="bg-slate-900 border border-neutral-700 hover:border-neutral-500 rounded-xl p-6 space-y-6 transition-all cursor-pointer"
           >
             <div className="flex items-start gap-4">
-              <div className="bg-green-500/10 p-2 rounded-lg">
-                <Zap className="h-6 w-6 text-green-400" />
+              <div className="bg-neutral-800/50 p-2 rounded-lg">
+                <Zap className="h-6 w-6 text-neutral-400" />
               </div>
               <div>
-                <h4 className="font-bold text-green-400 text-lg">Quick Start</h4>
+                <h4 className="font-bold text-neutral-400 text-lg">Quick Start</h4>
                 <p className="text-slate-400 text-sm">Start exploring immediately</p>
               </div>
             </div>
@@ -148,23 +149,27 @@ export function GitHubTokenSetupModal({ isOpen, onClose }: GitHubTokenSetupModal
           {/* Advanced Setup Option */}
           <div
             onClick={skipToAdvanced}
-            className="bg-slate-900 border border-blue-500/30 hover:border-blue-500/80 rounded-xl p-6 space-y-6 transition-all cursor-pointer"
+            className="bg-slate-900 border border-neutral-700 hover:border-neutral-500 rounded-xl p-6 space-y-6 transition-all cursor-pointer"
           >
             <div className="flex items-start gap-4">
-              <div className="bg-blue-500/10 p-2 rounded-lg">
-                <Shield className="h-6 w-6 text-blue-400" />
+              <div className="bg-neutral-800/50 p-2 rounded-lg">
+                <Shield className="h-6 w-6 text-neutral-400" />
               </div>
               <div>
-                <h4 className="font-bold text-blue-400 text-lg">Advanced Setup</h4>
+                <h4 className="font-bold text-neutral-400 text-lg">Advanced Setup</h4>
                 <p className="text-slate-400 text-sm">Unlock all features</p>
               </div>
             </div>
-            <div className="space-y-3">
-              <Feature color="blue">Branch visualization</Feature>
-              <Feature color="blue">Commit history</Feature>
-              <Feature color="blue">Real-time sync</Feature>
-              <Feature color="blue">Advanced analytics</Feature>
-            </div>
+            <ScrollArea className="h-[120px] w-full rounded-md p-4">
+              <div className="space-y-3">
+                <Feature>Branch visualization</Feature>
+                <Feature>Commit history</Feature>
+                <Feature>Real-time sync</Feature>
+                <Feature>Advanced analytics</Feature>
+                <Feature>AI-powered code analysis</Feature>
+                <Feature>Automated README generation</Feature>
+              </div>
+            </ScrollArea>
             <p className="text-xs text-slate-500">
               Get the full power of GitHub integration. Setup takes only 2 minutes.
             </p>
@@ -190,26 +195,26 @@ export function GitHubTokenSetupModal({ isOpen, onClose }: GitHubTokenSetupModal
   const renderStep1 = () => (
     <div className="space-y-6">
       <div className="text-center">
-        <div className="mx-auto w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mb-4">
-          <Key className="h-6 w-6 text-white" />
+        <div className="mx-auto w-12 h-12 bg-neutral-800 rounded-full flex items-center justify-center mb-4">
+          <Key className="h-6 w-6 text-neutral-300" />
         </div>
         <h3 className="text-lg font-semibold mb-2">Create GitHub Token</h3>
-        <p className="text-gray-600 text-sm">
+        <p className="text-gray-400 text-sm">
           Let's create a personal access token to unlock advanced features
         </p>
       </div>
 
-      <Card className="bg-blue-50 border-blue-200">
+      <Card className="bg-neutral-900 border-neutral-800">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-blue-800">Step 1: Go to GitHub</CardTitle>
+          <CardTitle className="text-sm font-medium text-neutral-300">Step 1: Go to GitHub</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-blue-700">
+          <p className="text-sm text-neutral-400">
             Click the button below to open GitHub's token creation page
           </p>
           <Button 
             variant="outline" 
-            className="w-full border-blue-300 hover:bg-blue-100"
+            className="w-full border-neutral-700 hover:bg-neutral-800"
             onClick={() => window.open('https://github.com/settings/tokens/new', '_blank')}
           >
             <Github className="mr-2 h-4 w-4" />
@@ -235,39 +240,39 @@ export function GitHubTokenSetupModal({ isOpen, onClose }: GitHubTokenSetupModal
   const renderStep2 = () => (
     <div className="space-y-6">
       <div className="text-center">
-        <div className="mx-auto w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mb-4">
-          <Shield className="h-6 w-6 text-white" />
+        <div className="mx-auto w-12 h-12 bg-neutral-800 rounded-full flex items-center justify-center mb-4">
+          <Shield className="h-6 w-6 text-neutral-300" />
         </div>
         <h3 className="text-lg font-semibold mb-2">Configure Token Permissions</h3>
-        <p className="text-gray-600 text-sm">
+        <p className="text-gray-400 text-sm">
           Set up the required permissions for your token
         </p>
       </div>
 
       <div className="space-y-4">
-        <Card className="bg-yellow-50 border-yellow-200">
+        <Card className="bg-neutral-900 border-neutral-800">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-yellow-800">Required Settings</CardTitle>
+            <CardTitle className="text-sm font-medium text-neutral-300">Required Settings</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-600" />
+                <CheckCircle className="h-4 w-4 text-neutral-500" />
                 <span className="text-sm font-medium">Token name:</span>
-                <code className="bg-gray-100 px-2 py-1 rounded text-xs">GitHub Tailored AI</code>
+                <code className="bg-neutral-800 px-2 py-1 rounded text-xs">GitHub Tailored AI</code>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-600" />
+                <CheckCircle className="h-4 w-4 text-neutral-500" />
                 <span className="text-sm font-medium">Expiration:</span>
-                <span className="text-sm text-gray-600">Choose your preference (30 days recommended)</span>
+                <span className="text-sm text-gray-400">Choose your preference (30 days recommended)</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-blue-50 border-blue-200">
+        <Card className="bg-neutral-900 border-neutral-800">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-blue-800">Required Scopes</CardTitle>
+            <CardTitle className="text-sm font-medium text-neutral-300">Required Scopes</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {[
@@ -275,23 +280,23 @@ export function GitHubTokenSetupModal({ isOpen, onClose }: GitHubTokenSetupModal
               { scope: 'read:user', description: 'Read user profile data' },
               { scope: 'read:org', description: 'Read organization membership' }
             ].map((item, index) => (
-              <div key={index} className="flex items-start gap-3 p-2 bg-white rounded border border-blue-200">
-                <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+              <div key={index} className="flex items-start gap-3 p-2 bg-neutral-950 rounded border border-neutral-800">
+                <CheckCircle className="h-4 w-4 text-neutral-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <code className="text-sm font-mono text-blue-800">{item.scope}</code>
-                  <p className="text-xs text-gray-600 mt-1">{item.description}</p>
+                  <code className="text-sm font-mono text-neutral-300">{item.scope}</code>
+                  <p className="text-xs text-gray-400 mt-1">{item.description}</p>
                 </div>
               </div>
             ))}
           </CardContent>
         </Card>
 
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+        <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-2">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span className="text-sm font-medium text-green-800">Ready to generate?</span>
+            <CheckCircle className="h-4 w-4 text-neutral-500" />
+            <span className="text-sm font-medium text-neutral-300">Ready to generate?</span>
           </div>
-          <p className="text-xs text-green-700">
+          <p className="text-xs text-neutral-400">
             Once you've selected all scopes, click "Generate token" on GitHub
           </p>
         </div>
@@ -313,11 +318,11 @@ export function GitHubTokenSetupModal({ isOpen, onClose }: GitHubTokenSetupModal
   const renderStep3 = () => (
     <div className="space-y-6">
       <div className="text-center">
-        <div className="mx-auto w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mb-4">
-          <Key className="h-6 w-6 text-white" />
+        <div className="mx-auto w-12 h-12 bg-neutral-800 rounded-full flex items-center justify-center mb-4">
+          <Key className="h-6 w-6 text-neutral-300" />
         </div>
         <h3 className="text-lg font-semibold mb-2">Enter Your Token</h3>
-        <p className="text-gray-600 text-sm">
+        <p className="text-gray-400 text-sm">
           Copy your token from GitHub and paste it below
         </p>
       </div>
@@ -370,8 +375,8 @@ export function GitHubTokenSetupModal({ isOpen, onClose }: GitHubTokenSetupModal
           )}
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <p className="text-xs text-blue-700">
+        <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-3">
+          <p className="text-xs text-neutral-400">
             <strong>Tip:</strong> Your token should start with "ghp_" and be about 40 characters long
           </p>
         </div>
@@ -385,7 +390,7 @@ export function GitHubTokenSetupModal({ isOpen, onClose }: GitHubTokenSetupModal
         <Button 
           onClick={handleValidateAndSave}
           disabled={!localToken || isLoading}
-          className="bg-green-600 hover:bg-green-700"
+          className="bg-neutral-300 hover:bg-neutral-400 text-neutral-900"
         >
           {isLoading ? (
             <>
@@ -405,10 +410,11 @@ export function GitHubTokenSetupModal({ isOpen, onClose }: GitHubTokenSetupModal
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto bg-[#0D1117] text-gray-300 border-slate-800 p-0">
-        <div className={currentStep > 0 ? "p-6" : ""}>
-          <DialogHeader className="space-y-3">
-            {currentStep > 0 && (
+      <DialogContent className="sm:max-w-4xl bg-[#0D1117] text-gray-300 border-slate-800 p-0">
+        <ScrollArea className="max-h-[90vh]">
+          <div className={currentStep > 0 ? "p-6" : ""}>
+            <DialogHeader className="space-y-3">
+              {currentStep > 0 && (
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center">
                   <Github className="h-4 w-4 text-slate-400" />
@@ -433,6 +439,7 @@ export function GitHubTokenSetupModal({ isOpen, onClose }: GitHubTokenSetupModal
             {currentStep === 3 && renderStep3()}
           </div>
         </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   )

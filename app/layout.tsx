@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { JetBrains_Mono } from "next/font/google"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import "./globals.css"
 
 const jetbrainsMono = JetBrains_Mono({
@@ -22,7 +23,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className={`${jetbrainsMono.variable} font-mono`}>{children}</body>
+      <body className={`${jetbrainsMono.variable} font-mono`}>
+        <ScrollArea className="h-screen w-full">
+          {children}
+        </ScrollArea>
+      </body>
     </html>
   )
 }

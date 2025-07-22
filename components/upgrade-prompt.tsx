@@ -74,29 +74,29 @@ export function UpgradePrompt({ feature, onUpgrade, onDismiss }: UpgradePromptPr
   const IconComponent = config.icon
 
   return (
-    <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
+    <Card className="border-neutral-800 bg-neutral-950">
       <CardHeader className="pb-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <IconComponent className="h-5 w-5 text-blue-600" />
+          <div className="p-2 bg-neutral-800 rounded-lg">
+            <IconComponent className="h-5 w-5 text-neutral-400" />
           </div>
           <div className="flex-1">
             <CardTitle className="text-lg flex items-center gap-2">
               {config.title}
-              <Badge className="text-xs bg-blue-600">Premium</Badge>
+              <Badge className="text-xs bg-neutral-800 border border-neutral-700 text-neutral-300">Premium</Badge>
             </CardTitle>
             <CardDescription className="text-sm">
               {config.description}
             </CardDescription>
           </div>
-          <div className="p-1 bg-amber-100 rounded-full">
-            <Lock className="h-4 w-4 text-amber-600" />
+          <div className="p-1 bg-neutral-800 rounded-full">
+            <Lock className="h-4 w-4 text-neutral-400" />
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-blue-700">🚀 Unlock this feature with GitHub token:</h4>
+          <h4 className="text-sm font-medium text-neutral-300">🚀 Unlock this feature with GitHub token:</h4>
           <ul className="text-sm text-muted-foreground space-y-1 ml-4">
             {config.benefits.map((benefit, index) => (
               <li key={index}>• {benefit}</li>
@@ -104,9 +104,9 @@ export function UpgradePrompt({ feature, onUpgrade, onDismiss }: UpgradePromptPr
           </ul>
         </div>
 
-        <div className="bg-white/70 p-3 rounded-lg border border-blue-200">
+        <div className="bg-neutral-900/70 p-3 rounded-lg border border-neutral-800">
           <div className="flex items-center gap-2 mb-2">
-            <Zap className="h-4 w-4 text-green-600" />
+            <Zap className="h-4 w-4 text-neutral-400" />
             <span className="text-sm font-medium">Quick Start Users</span>
           </div>
           <p className="text-xs text-muted-foreground mb-3">
@@ -116,7 +116,7 @@ export function UpgradePrompt({ feature, onUpgrade, onDismiss }: UpgradePromptPr
           <div className="flex gap-2">
             <Button 
               onClick={onUpgrade}
-              className="flex-1 group bg-blue-600 hover:bg-blue-700"
+              className="flex-1 group bg-neutral-50 hover:bg-neutral-200 text-neutral-900"
               size="sm"
             >
               <Github className="h-4 w-4 mr-2" />

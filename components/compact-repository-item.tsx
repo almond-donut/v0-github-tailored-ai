@@ -55,19 +55,8 @@ export function CompactRepositoryItem({
   }
 
   const getLanguageColor = (language: string) => {
-    const colors: Record<string, string> = {
-      'TypeScript': 'bg-blue-500',
-      'JavaScript': 'bg-yellow-500',
-      'Python': 'bg-green-500',
-      'Java': 'bg-orange-500',
-      'Go': 'bg-cyan-500',
-      'Rust': 'bg-orange-700',
-      'C++': 'bg-pink-500',
-      'C#': 'bg-purple-500',
-      'Dart': 'bg-blue-400',
-      'Swift': 'bg-orange-400',
-    }
-    return colors[language] || 'bg-gray-500'
+    // All languages will have the same color in black and white theme
+    return 'bg-neutral-500'
   }
 
   const hasAnalysis = repository.ai_analysis !== null
@@ -77,10 +66,10 @@ export function CompactRepositoryItem({
       ref={setNodeRef}
       style={style}
       className={`
-        group relative flex items-center gap-3 p-3 rounded-lg border 
-        bg-card hover:bg-accent/50 transition-all duration-200
+        group relative flex items-center gap-3 p-3 rounded-lg border border-transparent 
+        bg-card hover:border-neutral-700 transition-all duration-200
         ${isDragging ? 'opacity-50 scale-105 shadow-lg' : ''}
-        ${repository.is_featured ? 'ring-2 ring-primary/20 bg-primary/5' : ''}
+        ${repository.is_featured ? 'ring-2 ring-neutral-500/20 bg-neutral-500/5' : ''}
       `}
       {...attributes}
     >
